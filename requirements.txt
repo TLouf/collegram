@@ -1,0 +1,4 @@
+telethon
+ipykernel
+tqdm
+python-dotenv
