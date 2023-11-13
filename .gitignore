@@ -88,3 +88,6 @@ target/
 
 # Bash scripts
 *.sh
+
+# Telethon sessions
+*.session
