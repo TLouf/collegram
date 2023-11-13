@@ -18,7 +18,7 @@ def get_downloadable_media(messages) -> dict[int, MessageMediaDocument | Message
     return media_dict
 
 
-def download(
+def download_from_dict(
     client, media_to_dl: dict[int, MessageMediaDocument | MessageMediaPhoto], savedir_path
 ):
     savedir_path.mkdir(exist_ok=True, parents=True)
@@ -27,3 +27,8 @@ def download(
     for media_id in ids_to_dl.difference(ids_to_skip):
         client.download_media(media_to_dl[media_id], savedir_path / f"{media_id}")
 
+
+def download_from_message_id(client, channel_username: str, message_id: int, savedir_path):
+    m = client.get_messages(channel_username, ids=message_id)
+    media_dict = get_downloadable_media([m])
+    download_from_dict(client, media_dict, savedir_path)
