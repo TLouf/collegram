@@ -76,12 +76,3 @@ class ProjectPaths:
         self.processed_data = self.proj_data / 'processed'
         self.channel_seed = self.ext_data / 'channels.txt'
         self.figs = self.proj / 'reports' / 'figures'
-
-    # def partial_format(self, **kwargs):
-    #     for attr in (
-    #         'case_figs', 'resident_ids', 'user_cells_from_gps', 'user_places',
-    #         'user_cell_acty', 'user_residence_cell', 'user_mistakes', 'user_corpora',
-    #         'chunk_user_mistakes', 'rule_category', 'language_tool_categories',
-    #         'counts_files', 'cells_mistakes', 'inter_cell_od'
-    #     ):
-    #         setattr(self, attr, partial_path_format(getattr(self, attr), **kwargs))

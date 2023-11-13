@@ -26,14 +26,4 @@ def download(
     ids_to_dl = set(media_to_dl.keys())
     for media_id in ids_to_dl.difference(ids_to_skip):
         client.download_media(media_to_dl[media_id], savedir_path / f"{media_id}")
-    # if message.photo is not None:
-    #     media_id = message.photo.id
-    # elif message.document is not None:
-    #     media_id = message.document.id
-    # else:
-    #     return
-    # return client.download_media(savedir_path / f"{media_id}")
 
-# def is_type_to_download(media):
-#     # or simply media is not None??
-#     return isinstance(media, (MessageMediaDocument, MessageMediaPhoto, MessageMediaWebPage))
