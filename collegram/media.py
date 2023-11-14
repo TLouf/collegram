@@ -6,14 +6,15 @@ from telethon.tl.types import (
 )
 
 
-def get_downloadable_media(messages) -> dict[int, MessageMediaDocument | MessageMediaPhoto]:
+def get_downloadable_media(messages, only_photos=False) -> dict[int, MessageMediaDocument | MessageMediaPhoto]:
     media_dict = {}
     for m in messages:
         # Download on web page will get social preview photo, so might as well save
         # under this photo's ID.
         if m.photo is not None:
             media_dict[str(m.photo.id)] = m.media
-        elif m.document is not None:
+        elif not only_photos and m.document is not None:
+            # Document type for videos and GIFs (downloaded as silent mp4 videos).
             media_dict[str(m.document.id)] = m.media
     return media_dict
 
