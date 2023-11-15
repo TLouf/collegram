@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from telethon.tl.types import (
     MessageMediaDocument,
     MessageMediaPhoto,
 )
 
+if TYPE_CHECKING:
+    from telethon.tl.types import Message
 
-def get_downloadable_media(messages, only_photos=False) -> dict[int, MessageMediaDocument | MessageMediaPhoto]:
+
+def get_downloadable_media(messages: list[Message], only_photos: bool = False) -> dict[int, MessageMediaDocument | MessageMediaPhoto]:
     media_dict = {}
     for m in messages:
         # Download on web page will get social preview photo, so might as well save
