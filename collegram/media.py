@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
+from telethon.errors import FileReferenceExpiredError
 from telethon.tl.types import (
     MessageMediaDocument,
     MessageMediaPhoto,
@@ -9,6 +11,8 @@ from telethon.tl.types import (
 
 if TYPE_CHECKING:
     from telethon.tl.types import Message
+
+logger = logging.getLogger(__name__)
 
 
 def get_downloadable_media(messages: list[Message], only_photos: bool = False) -> dict[int, MessageMediaDocument | MessageMediaPhoto]:
@@ -31,7 +35,10 @@ def download_from_dict(
     ids_to_skip = set([p.stem for p in savedir_path.iterdir()])
     ids_to_dl = set(media_to_dl.keys())
     for media_id in ids_to_dl.difference(ids_to_skip):
-        client.download_media(media_to_dl[media_id], savedir_path / f"{media_id}")
+        try:
+            client.download_media(media_to_dl[media_id], savedir_path / f"{media_id}")
+        except FileReferenceExpiredError:
+            logger.info(f"Reference expired for media {media_id}")
 
 
 def download_from_message_id(client, channel_username: str, message_id: int, savedir_path):
