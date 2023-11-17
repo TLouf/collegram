@@ -4,6 +4,7 @@ import logging
 import re
 from typing import TYPE_CHECKING
 
+from telethon.errors import ChannelPrivateError
 from telethon.tl.functions.contacts import SearchRequest
 from telethon.tl.types import PeerChannel
 
@@ -26,13 +27,14 @@ def search_from_tgdb(client: TelegramClient, query):
 def search_from_api(client: TelegramClient, query, limit=100):
     return [c.username for c in client(SearchRequest(q=query, limit=limit)).chats]
 
-def get(client: TelegramClient, channel_id):
-    entity = PeerChannel(channel_id) if channel_id.isdigit() else channel_id
+def get(client: TelegramClient, channel_id: int | str) -> Channel | None:
+    # channel_id can be integer ID or username
     try:
-        channel = client.get_entity(entity)
-    except ValueError:
-        channel = None
-    return channel
+        return client.get_entity(PeerChannel(channel_id))
+    except ChannelPrivateError:
+        logger.info(f"found private channel {channel_id}")
+
+
 
 
 def from_forwarded(client: TelegramClient, messages: list[Message]) -> set[str]:
@@ -42,7 +44,8 @@ def from_forwarded(client: TelegramClient, messages: list[Message]) -> set[str]:
         if m.fwd_from is not None:
             fwd_from_entity = m.fwd_from.from_id
             if isinstance(fwd_from_entity, PeerChannel):
-                channel_obj = client.get_entity(PeerChannel(fwd_from_entity.channel_id))
-                new_channels.add(channel_obj.username)
+                channel_obj = get(client, fwd_from_entity.channel_id)
+                if channel_obj is not None:
+                    new_channels.add(channel_obj.id)
 
     return new_channels
