@@ -5,12 +5,13 @@ import re
 from typing import TYPE_CHECKING
 
 from telethon.errors import ChannelPrivateError
+from telethon.tl.functions.channels import GetFullChannelRequest
 from telethon.tl.functions.contacts import SearchRequest
 from telethon.tl.types import PeerChannel
 
 if TYPE_CHECKING:
     from telethon import TelegramClient
-    from telethon.tl.types import Message
+    from telethon.tl.types import Channel, ChatFull, Message
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,13 @@ def get(client: TelegramClient, channel_id: int | str) -> Channel | None:
         logger.info(f"found private channel {channel_id}")
 
 
+def get_full(client: TelegramClient, channel_id: int | str) -> ChatFull | None:
+    # channel = get(client, channel_id)
+    # if channel is not None:
+    try:
+        return client(GetFullChannelRequest(channel=channel_id))
+    except ChannelPrivateError:
+        logger.info(f"found private channel {channel_id}")
 
 
 def from_forwarded(client: TelegramClient, messages: list[Message]) -> set[str]:
