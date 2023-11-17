@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import datetime
+import inspect
 import logging
 from typing import TYPE_CHECKING
+from telethon.tl.functions.messages import GetRepliesRequest
 
 if TYPE_CHECKING:
-    import datetime
-
     from telethon import TelegramClient
     from telethon.tl.types import Channel
 
@@ -40,6 +41,8 @@ def get_channel_messages(client: TelegramClient, channel: str | Channel, dt_from
             # by default)
             if message.date >= dt_from:
                 chunk_messages.append(message)
+                if getattr(message, "replies", None) is not None and message.replies.comments:
+                    chunk_messages.extend(get_comments(client, channel, message.id))
             else:
                 keep_going = False
                 break
@@ -53,3 +56,40 @@ def get_channel_messages(client: TelegramClient, channel: str | Channel, dt_from
         total_messages = len(all_messages)
 
     return all_messages
+
+
+def get_comments(client: TelegramClient, channel: str | Channel, message_id):
+    result = client(GetRepliesRequest(
+        peer=channel,
+        msg_id=message_id,
+        offset_id=0,
+        offset_date=datetime.datetime.now(),
+        add_offset=0,
+        limit=-1,
+        max_id=0,
+        min_id=0,
+        hash=0
+    ))
+
+    comments = [Comment.from_message(m, message_id) for m in result.messages]
+    return comments
+
+
+# First is self, so take from index 1 on.
+MESSAGE_INIT_ARGS = inspect.getfullargspec(Message).args[1:]
+
+class Comment(Message):
+    # Created this class because m.reply_msg_id did not match the commented-on message's
+    # id, so need to save the info somehow.
+
+    @classmethod
+    def from_message(cls, message: Message, comments_msg_id: int):
+        instance = cls(*[getattr(message, a) for a in MESSAGE_INIT_ARGS])
+        instance.comments_msg_id = comments_msg_id
+        return instance
+
+    def to_dict(self):
+        d = super().to_dict()
+        d['comments_msg_id'] = self.comments_msg_id
+        return d
+
