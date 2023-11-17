@@ -28,6 +28,7 @@ def get_channel_participants(client: TelegramClient, channel_username):
             )
         except ChatAdminRequiredError:
             logger.warning(f"No access to participants of {channel_username}")
+            break
 
         if not participants.users:
             break
