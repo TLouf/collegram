@@ -39,15 +39,10 @@ def get_channel_participants(client: TelegramClient, channel_username):
     return all_participants
 
 
-def get_channel_users_dict(client: TelegramClient, channel_username, f_users=None):
-    users_dict = {}
+def get_channel_users(client: TelegramClient, channel_username, f_users=None):
     participants = get_channel_participants(client, channel_username)
     for p in participants:
-        # Users only have a username if they have set one manually, so we get the ID as
-        # reliable identifier.
+        # We completely anonymise the following fields:
         for field in ("first_name", "last_name", "username", "phone", "photo"):
             setattr(p, field, None)
-        users_dict[p.id] = p.to_dict()
-        users_dict[p.id]["user_object"] = p
-        users_dict[p.id]['channel_username'] = channel_username
-    return users_dict
+    return participants
