@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import re
 from typing import TYPE_CHECKING
@@ -13,7 +14,7 @@ from collegram.messages import ExtendedMessage
 
 if TYPE_CHECKING:
     from telethon import TelegramClient
-    from telethon.tl.types import Channel, ChatFull, Message
+    from telethon.tl.types import Channel, ChannelFull, Message
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ def get(client: TelegramClient, channel_id: int | str) -> Channel | None:
         logger.info(f"found private channel {channel_id}")
 
 
-def get_full(client: TelegramClient, channel_id: int | str) -> ChatFull | None:
+def get_full(client: TelegramClient, channel_id: int | str) -> ChannelFull | None:
     try:
         return client(GetFullChannelRequest(channel=channel_id))
     except ChannelPrivateError:
@@ -52,3 +53,27 @@ def from_forwarded(messages: list[Message]) -> set[str]:
         if isinstance(m, ExtendedMessage) and m.raw_fwd_from_channel_id is not None
     }
     return new_channels
+
+
+def get_chat_save_dict(chat: Channel, forwarded_channels, anon_func, safe=True) -> dict:
+    chat_dict = json.loads(anonymise_chat(chat, anon_func, safe=safe).to_json())
+    chat_dict['forwards_from'] = [
+        anon_func(c) for c in forwarded_channels
+    ]
+    return chat_dict
+
+def anonymise_chat(chat: Channel, anon_func, safe=True) -> Channel:
+    chat.photo = None
+    chat.id = anon_func(chat.id, safe=safe)
+    chat.username = anon_func(chat.username, safe=safe)
+    chat.title = anon_func(chat.title, safe=safe)
+    if chat.usernames is not None:
+        chat.usernames = [anon_func(username, safe=safe) for username in chat.usernames]
+    return chat
+
+def anonymise_full_chat(full_chat: ChannelFull, anon_func, safe=True) -> ChannelFull:
+    full_chat.chat_photo = None
+    full_chat.id = anon_func(full_chat.id, safe=safe)
+    full_chat.linked_chat_id = anon_func(full_chat.linked_chat_id, safe=safe)
+    full_chat.migrated_from_chat_id = anon_func(full_chat.migrated_from_chat_id, safe=safe)
+    return full_chat
