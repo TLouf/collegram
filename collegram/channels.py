@@ -37,23 +37,19 @@ def get(client: TelegramClient, channel_id: int | str) -> Channel | None:
 
 
 def get_full(client: TelegramClient, channel_id: int | str) -> ChatFull | None:
-    # channel = get(client, channel_id)
-    # if channel is not None:
     try:
         return client(GetFullChannelRequest(channel=channel_id))
     except ChannelPrivateError:
         logger.info(f"found private channel {channel_id}")
 
 
-def from_forwarded(client: TelegramClient, messages: list[Message]) -> set[str]:
+def from_forwarded(messages: list[Message]) -> set[str]:
     new_channels = set()
 
     for m in messages:
         if m.fwd_from is not None:
             fwd_from_entity = m.fwd_from.from_id
             if isinstance(fwd_from_entity, PeerChannel):
-                channel_obj = get(client, fwd_from_entity.channel_id)
-                if channel_obj is not None:
-                    new_channels.add(channel_obj.id)
+                new_channels.add(fwd_from_entity.channel_id)
 
     return new_channels
