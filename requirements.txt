@@ -5,3 +5,4 @@ python-dotenv
 -e .
 # For faster media DL:
 cryptg
+polars
