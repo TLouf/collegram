@@ -12,13 +12,29 @@ class HMAC_anonymiser:
         self.key = bytes.fromhex(key)
         self.anon_map = {} if anon_map is None else anon_map
 
-    def anonymise(self, data: int | str | None):
+    def anonymise(self, data: int | str | None, safe: bool = False) -> str:
+        """Anonymise the provided data.
+
+        Parameters
+        ----------
+        data : int | str | None
+            Input data. If None, the function simply returns None.
+        safe : bool, optional
+            Whether the anonymiser should first check if the input data are not the
+            result of a previous anonymisation. By default False.
+
+        Returns
+        -------
+        str
+            Anonymised data.
+        """
         if data is not None:
-            data_str = str(data)
-            data = self.anon_map.get(data_str)
-            if data is None:
-                data = hmac.digest(self.key, data_str.encode('utf-8'), 'sha256').hex()
-                self.anon_map[data_str] = data
+            if not safe or data in self.inverse_anon_map:
+                data_str = str(data)
+                data = self.anon_map.get(data_str)
+                if data is None:
+                    data = hmac.digest(self.key, data_str.encode('utf-8'), 'sha256').hex()
+                    self.anon_map[data_str] = data
         return data
 
     def update_from_disk(self, save_path):
