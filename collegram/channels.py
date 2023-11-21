@@ -9,6 +9,8 @@ from telethon.tl.functions.channels import GetFullChannelRequest
 from telethon.tl.functions.contacts import SearchRequest
 from telethon.tl.types import PeerChannel
 
+from collegram.messages import ExtendedMessage
+
 if TYPE_CHECKING:
     from telethon import TelegramClient
     from telethon.tl.types import Channel, ChatFull, Message
@@ -44,12 +46,9 @@ def get_full(client: TelegramClient, channel_id: int | str) -> ChatFull | None:
 
 
 def from_forwarded(messages: list[Message]) -> set[str]:
-    new_channels = set()
-
-    for m in messages:
-        if m.fwd_from is not None:
-            fwd_from_entity = m.fwd_from.from_id
-            if isinstance(fwd_from_entity, PeerChannel):
-                new_channels.add(fwd_from_entity.channel_id)
-
+    new_channels = {
+        m.raw_fwd_from_channel_id
+        for m in messages
+        if isinstance(m, ExtendedMessage) and m.raw_fwd_from_channel_id is not None
+    }
     return new_channels
