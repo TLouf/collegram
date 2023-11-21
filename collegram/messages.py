@@ -49,7 +49,6 @@ def get_channel_messages(client: TelegramClient, channel: str | Channel, dt_from
     while keep_going:
         chunk_messages = []
         logger.info(f"Current Offset ID is: {offset_id}; Total Messages: {total_messages}")
-        # Splitting by 10k chunks in case of disconnection, to at least save something (TODO: save)
         # Telethon docs are misleading, `offset_date` is in fact a datetime.
         messages = client.iter_messages(
             entity=channel,
