@@ -150,7 +150,7 @@ def anonymise_metadata(message: ExtendedMessage | MessageService, anon_func):
 
     if isinstance(message, ExtendedMessage):
         message.post_author = anon_func(message.post_author)
-        message = anonymise_peer(message, "reply_to.reply_to_peer_id", anon_func)
+        message.reply_to = anonymise_peer(message.reply_to, "reply_to_peer_id", anon_func)
 
         if message.replies is not None:
             message.replies.channel_id = anon_func(message.replies.channel_id)
@@ -160,7 +160,8 @@ def anonymise_metadata(message: ExtendedMessage | MessageService, anon_func):
 
         if message.fwd_from is not None:
             message.raw_fwd_from_channel_id = getattr(message.fwd_from.from_id, 'channel_id', None)
-            message = anonymise_peer(message, "fwd_from.from_id", anon_func)
+            message.fwd_from = anonymise_peer(message.fwd_from, "from_id", anon_func)
+            message.fwd_from = anonymise_peer(message.fwd_from, "saved_from_peer", anon_func)
             message.fwd_from.from_name = anon_func(message.fwd_from.from_name)
             message.fwd_from.post_author = anon_func(message.fwd_from.post_author)
 
@@ -187,6 +188,7 @@ def anonymise_metadata(message: ExtendedMessage | MessageService, anon_func):
 
 
 def anonymise_peer(object, path_to_peer, anon_func):
+    # TODO: fix for path with parts?
     path_parts = path_to_peer.split('.')
     peer_obj = getattr(object, path_parts[0], None)
     for i in range(1, len(path_parts)-1):
