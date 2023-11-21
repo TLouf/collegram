@@ -45,6 +45,8 @@ def get_channel_users_dict(client: TelegramClient, channel_username, f_users=Non
     for p in participants:
         # Users only have a username if they have set one manually, so we get the ID as
         # reliable identifier.
+        for field in ("first_name", "last_name", "username", "phone", "photo"):
+            setattr(p, field, None)
         users_dict[p.id] = p.to_dict()
         users_dict[p.id]["user_object"] = p
         users_dict[p.id]['channel_username'] = channel_username
