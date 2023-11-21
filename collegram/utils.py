@@ -29,7 +29,7 @@ class HMAC_anonymiser:
             Anonymised data.
         """
         if data is not None:
-            if not safe or data in self.inverse_anon_map:
+            if not safe or data not in self.inverse_anon_map:
                 data_str = str(data)
                 data = self.anon_map.get(data_str)
                 if data is None:
