@@ -39,10 +39,11 @@ def get_channel_participants(client: TelegramClient, channel_username):
     return all_participants
 
 
-def get_channel_users(client: TelegramClient, channel_username, f_users=None):
+def get_channel_users(client: TelegramClient, channel_username, anon_func):
     participants = get_channel_participants(client, channel_username)
     for p in participants:
         # We completely anonymise the following fields:
         for field in ("first_name", "last_name", "username", "phone", "photo"):
             setattr(p, field, None)
+        p.id = anon_func(p.id)
     return participants
