@@ -33,7 +33,7 @@ def preprocess_from_message(message: Message, media_dict: dict, media_save_path:
         elif isinstance(media, MessageMediaWebPage) and getattr(media.webpage, "cached_page", None) is not None:
             # Empty cached_page parts to lighten messages, save it in media folder.
             page_save_path = media_save_path / "cached_pages" / f"{media.webpage.id}.json"
-            page_save_path.mkdir(exist_ok=True, parents=True)
+            page_save_path.parent.mkdir(exist_ok=True, parents=True)
             if not page_save_path.exists():
                 page_save_path.write_text(media.webpage.to_json())
             media.webpage.cached_page.blocks = []
