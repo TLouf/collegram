@@ -35,7 +35,6 @@ def save_all_chats_messages(client, chat, global_dt_to, paths, all_media_dict, a
             anonymiser.save_map(anon_map_save_path)
 
             forwarded_channels = forwarded_channels.union(collegram.channels.from_forwarded(messages))
-            break
     forwarded_channels.discard(chat.id)
     return forwarded_channels
 
@@ -45,7 +44,7 @@ if __name__ == '__main__':
     paths = collegram.paths.ProjectPaths()
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-    # Go up to 30 days ago so that view counts, etc, are more or less to their final value
+    # Go up to 30 days ago so that view counts, etc, have more or less reached their final value
     global_dt_to = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=30)
     # dt_from = dt_to - datetime.timedelta(days=31)
     client = collegram.client.connect(
@@ -122,11 +121,10 @@ if __name__ == '__main__':
                 channel_data.full_chat, anonymiser.anonymise, safe=True
             )
             channel_save_data = json.loads(channel_data.to_json())
-            # CHANGED TODO check
             channel_save_data['participants'] =  [json.loads(u.to_json()) for u in users_list]
             channel_save_data['forwards_from'] = [
                 anonymiser.anonymise(c) for c in forwarded_channels
-            ] # CHANGED TODO check
+            ]
             anonymiser.save_map(anon_map_save_path)
             channel_save_path.write_text(json.dumps(channel_save_data))
 
@@ -141,9 +139,8 @@ if __name__ == '__main__':
             nr_processed_channels += 1
             # TODO: Reevaluate if save users in separate file worth it?
             # users_save_path = paths.raw_data / 'users' / f"{channel_username}.json"
-            break
 
         channels = channels.union(new_channels).difference(processed_channels)
         nr_remaining_channels = len(channels)
-        break
+        logger.info(f"{nr_processed_channels} channels already processed, {nr_remaining_channels} to go")
     # collegram.media.download_from_dict(client, all_media_dict, paths.raw_data / 'media', only_photos=True)
