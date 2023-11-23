@@ -55,11 +55,8 @@ def from_forwarded(messages: list[Message]) -> set[str]:
     return new_channels
 
 
-def get_chat_save_dict(chat: Channel, forwarded_channels, anon_func, safe=True) -> dict:
+def get_chat_save_dict(chat: Channel, anon_func, safe=True) -> dict:
     chat_dict = json.loads(anonymise_chat(chat, anon_func, safe=safe).to_json())
-    chat_dict['forwards_from'] = [
-        anon_func(c) for c in forwarded_channels
-    ]
     return chat_dict
 
 def anonymise_chat(chat: Channel, anon_func, safe=True) -> Channel:

@@ -64,88 +64,86 @@ if __name__ == '__main__':
     nr_remaining_channels = len(channels)
     nr_processed_channels = 0
     while nr_remaining_channels > 0 and nr_processed_channels < 2:
-        anonymiser = collegram.utils.HMAC_anonymiser()
         channel_identifier = channels.pop()
         # The `channel_identifier` here can refer to a specific chat of a channel, in
         # which case it can only be an int, or to a whole channel, in which case it can
         # be a str or an int. So first we get the encompassing full channel, to then
         # read all of its chats.
-        channel_data = collegram.channels.get_full(client, channel_identifier)
-        if channel_data is None:
-            logger.info(f"could not get data for channel {channel_identifier}")
+        listed_channel_data = collegram.channels.get_full(client, channel_identifier)
+        if listed_channel_data is None:
+            logger.info(f"could not get data for listed channel {channel_identifier}")
             continue
 
-        channel_dict = channel_data.full_chat.to_dict()
-        chans_with_uname = [c for c in channel_data.chats if getattr(c, "username", None) is not None]
-        # Using hierarchy broadcast > giga > mega?
-        list_unames = [c.username for c in chans_with_uname if c.broadcast]
-        if len(list_unames) == 0:
-            list_unames = [c.username for c in chans_with_uname if c.gigagroup]
-        if len(list_unames) == 0:
-            list_unames = [c.username for c in chans_with_uname if c.megagroup]
-        assert len(list_unames) == 1
-        channel_username = list_unames[0]
-        logger.info(f'---------------- {channel_username} ----------------')
-        logger.info(f"{channel_dict.get('participants_count')} participants, {channel_dict.get('about')}")
+        for chat in listed_channel_data.chats:
+            anonymiser = collegram.utils.HMAC_anonymiser()
+            channel_data = (
+                listed_channel_data
+                if chat.id == listed_channel_data.full_chat.id
+                else collegram.channels.get_full(client, channel_identifier)
+            )
+            if channel_data is None:
+                logger.info(f"could not get data for channel {chat.id}")
+                continue
 
-        channel_save_path = paths.raw_data / 'channels' / f"{channel_username}.json"
-        channel_save_path.parent.mkdir(exist_ok=True, parents=True)
-        if channel_save_path.exists():
-            channel_saved_data = json.loads(channel_save_path.read_text())
-            new_channels = set(channel_saved_data.get("forwards_from", {}))
-        else:
-            channel_saved_data = {}
-            new_channels = set()
+            channel_id = chat.id
+            logger.info(f'---------------- {channel_id} ----------------')
+            logger.info(f"{channel_data.full_chat.participants_count} participants, {channel_data.full_chat.about}")
 
-        users_list = collegram.users.get_channel_users(
-            client, channel_username, anonymiser.anonymise
-        ) if channel_dict.get('can_view_participants') else []
+            anon_map_save_path = paths.raw_data / 'anon_maps' / f"{channel_id}.json"
+            anon_map_save_path.parent.mkdir(exist_ok=True, parents=True)
+            anonymiser.update_from_disk(anon_map_save_path)
 
-        channel_data.full_chat = collegram.channels.anonymise_full_chat(
-            channel_data.full_chat, anonymiser.anonymise
-        )
-        channel_save_data = json.loads(channel_data.to_json())
-        channel_save_data['participants'] = [json.loads(u.to_json()) for u in users_list]
+            channel_save_path = paths.raw_data / 'channels' / f"{channel_id}.json"
+            channel_save_path.parent.mkdir(exist_ok=True, parents=True)
+            if channel_save_path.exists():
+                channel_saved_data = json.loads(channel_save_path.read_text())
+                new_channels = set(channel_saved_data.get("forwards_from", {}))
+            else:
+                channel_saved_data = {}
+                new_channels = set()
 
-        channels_chats = [
-            (i, c)
-            for i, c in enumerate(channel_data.chats)
-            if not getattr(c, "deactivated", False)
-        ]
-
-        for i_chat, chat in channels_chats:
-            # For messages, do everything chat-wise
+            users_list = collegram.users.get_channel_users(
+                client, chat, anonymiser.anonymise
+            ) if channel_data.full_chat.can_view_participants else []
+            # Save messages, don't get to avoid overflowing memory.
             forwarded_channels = save_all_chats_messages(
                 client, chat, global_dt_to, paths, all_media_dict, anonymiser, interval='1mo'
             )
 
-            anon_map_save_path = paths.raw_data / 'anon_maps' / f"{chat.id}.json"
-            anon_map_save_path.parent.mkdir(exist_ok=True, parents=True)
-            anonymiser.update_from_disk(anon_map_save_path)
-            inverse_anon_map = anonymiser.inverse_anon_map
-            saved_fwd_from = set(
-                [inverse_anon_map.get(c, c) for c in channel_saved_data['chats'][i_chat]['forwards_from']]
-                if 'chats' in channel_saved_data
-                else []
-            )
-            all_forwarded_channels = forwarded_channels.union(saved_fwd_from)
-            new_channels = new_channels.union(all_forwarded_channels)
-            processed_channels.add(chat.id)
             # Might seem redundant to write for every chat, but actually by doing this
             # single small write to disk, if the connection crashes between two chats
-            # this info will still have been saved.
-            channel_save_data['chats'][i_chat] = collegram.channels.get_chat_save_dict(
-                chat, forwarded_channels, anonymiser.anonymise
+            # this info will still have been saved. Chats should be anonymised last
+            # since they're used to make participants or messages' requests.
+            for c in channel_data.chats:
+                c = collegram.channels.anonymise_chat(
+                    c, anonymiser.anonymise, safe=True
+                )
+            channel_data.full_chat = collegram.channels.anonymise_full_chat(
+                channel_data.full_chat, anonymiser.anonymise, safe=True
             )
+            channel_save_data = json.loads(channel_data.to_json())
+            # CHANGED TODO check
+            channel_save_data['participants'] =  [json.loads(u.to_json()) for u in users_list]
+            channel_save_data['forwards_from'] = [
+                anonymiser.anonymise(c) for c in forwarded_channels
+            ] # CHANGED TODO check
+            anonymiser.save_map(anon_map_save_path)
             channel_save_path.write_text(json.dumps(channel_save_data))
+
+            # What new channels should we explore?
+            inverse_anon_map = anonymiser.inverse_anon_map
+            saved_fwd_from = set([
+                inverse_anon_map.get(c, c)
+                for c in channel_saved_data.get('forwards_from', [])
+            ])
+            new_channels = new_channels.union(forwarded_channels).union(saved_fwd_from)
+            processed_channels.add(channel_id)
             nr_processed_channels += 1
+            # TODO: Reevaluate if save users in separate file worth it?
+            # users_save_path = paths.raw_data / 'users' / f"{channel_username}.json"
             break
 
-        # TODO: Reevaluate if save users in separate file worth it?
-        # users_save_path = paths.raw_data / 'users' / f"{channel_username}.json"
-        processed_channels.add(channel_username)
         channels = channels.union(new_channels).difference(processed_channels)
-
         nr_remaining_channels = len(channels)
         break
     # collegram.media.download_from_dict(client, all_media_dict, paths.raw_data / 'media')
