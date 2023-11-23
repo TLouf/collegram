@@ -20,8 +20,8 @@ class HMAC_anonymiser:
         data : int | str | None
             Input data. If None, the function simply returns None.
         safe : bool, optional
-            Whether the anonymiser should first check if the input data are not the
-            result of a previous anonymisation. By default False.
+            Whether the anonymiser should first check that the input data are not the
+            result of a previous anonymisation. False by default.
 
         Returns
         -------
@@ -40,6 +40,9 @@ class HMAC_anonymiser:
     def update_from_disk(self, save_path):
         if save_path.exists():
             self.anon_map.update(json.loads(save_path.read_text()))
+
+    def save_map(self, save_path):
+        save_path.write_text(json.dumps(self.anon_map))
 
     @property
     def inverse_anon_map(self):
