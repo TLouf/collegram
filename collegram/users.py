@@ -10,6 +10,7 @@ from telethon.tl.types import ChannelParticipantsSearch
 
 if TYPE_CHECKING:
     from telethon import TelegramClient
+    from telethon.tl.types import Channel, User
 
 logger = logging.getLogger(__name__)
 
@@ -39,11 +40,18 @@ def get_channel_participants(client: TelegramClient, channel_username):
     return all_participants
 
 
-def get_channel_users(client: TelegramClient, channel_username, anon_func):
-    participants = get_channel_participants(client, channel_username)
+def get_channel_users(client: TelegramClient, channel: str | Channel, anon_func) -> list(User):
+    try:
+        participants = client.iter_participants(channel)
+    except ChatAdminRequiredError:
+        logger.warning(f"No access to participants of {channel}")
+        participants = []
+
+    users = []
     for p in participants:
         # We completely anonymise the following fields:
         for field in ("first_name", "last_name", "username", "phone", "photo"):
             setattr(p, field, None)
         p.id = anon_func(p.id)
-    return participants
+        users.append(p)
+    return users
