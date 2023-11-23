@@ -18,6 +18,7 @@ def save_all_chats_messages(client, chat, global_dt_to, paths, all_media_dict, a
     forwarded_channels = set()
     chat_dir_path = paths.raw_data / 'messages' / f"{chat.id}"
     anon_map_save_path = paths.raw_data / 'anon_maps' / f"{chat.id}.json"
+    media_save_path = paths.raw_data / 'media'
     anonymiser.update_from_disk(anon_map_save_path)
 
     logger.info(f"saving messages to {chat_dir_path}")
@@ -27,14 +28,13 @@ def save_all_chats_messages(client, chat, global_dt_to, paths, all_media_dict, a
     for dt_from, dt_to in zip(dt_bin_edges[:-1], dt_bin_edges[1:]):
         messages_save_path = chat_dir_path / f"{dt_from.date()}_to_{dt_to.date()}.jsonl"
         if not messages_save_path.exists():
-            messages = collegram.messages.get_channel_messages(client, chat, dt_from, dt_to, anonymiser.anonymise)
+            messages = collegram.messages.get_channel_messages(client, chat, dt_from, dt_to, anonymiser.anonymise, all_media_dict, media_save_path)
             messages_save_path.parent.mkdir(exist_ok=True, parents=True)
             messages_save_path.write_text("\n".join([m.to_json() for m in messages]))
 
-            anon_map_save_path.write_text(json.dumps(anonymiser.anon_map))
+            anonymiser.save_map(anon_map_save_path)
 
             forwarded_channels = forwarded_channels.union(collegram.channels.from_forwarded(messages))
-            all_media_dict.update(collegram.media.get_downloadable_media(messages, only_photos=True))
             break
     forwarded_channels.discard(chat.id)
     return forwarded_channels
@@ -52,7 +52,7 @@ if __name__ == '__main__':
         os.environ['API_ID'], os.environ['API_HASH'], os.environ["PHONE_NUMBER"],
         session=str(paths.proj / 'anon.session')
     )
-    all_media_dict = {}
+    all_media_dict = {'photos': {}, 'documents': {}}
     # channels = (paths.ext_data / "channels.txt").read_text().strip().split(",")
     channels = (paths.interim_data / "channels.txt").read_text().strip().split("\n")
     # tgdb_channels = collegram.channels.search_from_tgdb(client, "climate change")
@@ -146,4 +146,4 @@ if __name__ == '__main__':
         channels = channels.union(new_channels).difference(processed_channels)
         nr_remaining_channels = len(channels)
         break
-    # collegram.media.download_from_dict(client, all_media_dict, paths.raw_data / 'media')
+    # collegram.media.download_from_dict(client, all_media_dict, paths.raw_data / 'media', only_photos=True)

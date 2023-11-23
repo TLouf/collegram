@@ -29,6 +29,8 @@ from telethon.tl.types import (
     PeerUser,
 )
 
+import collegram.media
+
 if TYPE_CHECKING:
     from telethon import TelegramClient
     from telethon.tl.types import Channel
@@ -36,7 +38,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def get_channel_messages(client: TelegramClient, channel: str | Channel, dt_from: datetime.datetime, dt_to: datetime.datetime, anon_func):
+def get_channel_messages(client: TelegramClient, channel: str | Channel, dt_from: datetime.datetime, dt_to: datetime.datetime, anon_func, media_dict, media_save_path):
     '''
     dt_to exclusive
     '''
@@ -62,7 +64,7 @@ def get_channel_messages(client: TelegramClient, channel: str | Channel, dt_from
             # (works because HistoryRequest gets messages in reverse chronological order
             # by default)
             if message.date >= dt_from:
-                chunk_messages.append(preprocess(message, anon_func))
+                chunk_messages.append(preprocess(message, anon_func, media_dict, media_save_path))
                 if getattr(message, "replies", None) is not None and message.replies.comments:
                     chunk_messages.extend(get_comments(client, channel, message.id, anon_func))
             else:
@@ -101,11 +103,12 @@ def get_comments(client: TelegramClient, channel: str | Channel, message_id, ano
     return comments
 
 
-def preprocess(message: Message | MessageService, anon_func) -> ExtendedMessage:
+def preprocess(message: Message | MessageService, anon_func, media_dict, media_save_path) -> ExtendedMessage:
     preproced_message = message # TODO: copy?
     if isinstance(message, Message):
         preproced_message = ExtendedMessage.from_message(preproced_message)
         preproced_message = preprocess_entities(preproced_message, anon_func)
+        media_dict = collegram.media.preprocess_from_message(message, media_dict, media_save_path)
     preproced_message = anonymise_metadata(preproced_message, anon_func)
     return preproced_message
 
