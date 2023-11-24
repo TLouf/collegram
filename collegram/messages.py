@@ -27,6 +27,7 @@ from telethon.tl.types import (
     PeerChannel,
     PeerChat,
     PeerUser,
+    TypePeer,
 )
 
 import collegram.media
@@ -159,12 +160,12 @@ def preprocess_entities(message: ExtendedMessage, anon_func) -> ExtendedMessage:
 
 
 def anonymise_metadata(message: ExtendedMessage | MessageService, anon_func):
-    message = anonymise_peer(message, "peer_id", anon_func)
-    message = anonymise_peer(message, "from_id", anon_func)
+    message = anonymise_opt_peer(message, "peer_id", anon_func)
+    message = anonymise_opt_peer(message, "from_id", anon_func)
 
     if isinstance(message, ExtendedMessage):
         message.post_author = anon_func(message.post_author)
-        message.reply_to = anonymise_peer(message.reply_to, "reply_to_peer_id", anon_func)
+        message.reply_to = anonymise_opt_peer(message.reply_to, "reply_to_peer_id", anon_func)
 
         if message.replies is not None:
             message.replies.channel_id = anon_func(message.replies.channel_id)
@@ -174,14 +175,14 @@ def anonymise_metadata(message: ExtendedMessage | MessageService, anon_func):
 
         if message.fwd_from is not None:
             message.raw_fwd_from_channel_id = getattr(message.fwd_from.from_id, 'channel_id', None)
-            message.fwd_from = anonymise_peer(message.fwd_from, "from_id", anon_func)
-            message.fwd_from = anonymise_peer(message.fwd_from, "saved_from_peer", anon_func)
+            message.fwd_from = anonymise_opt_peer(message.fwd_from, "from_id", anon_func)
+            message.fwd_from = anonymise_opt_peer(message.fwd_from, "saved_from_peer", anon_func)
             message.fwd_from.from_name = anon_func(message.fwd_from.from_name)
             message.fwd_from.post_author = anon_func(message.fwd_from.post_author)
 
     elif isinstance(message, MessageService):
-        message.action = anonymise_peer(message.action, "peer", anon_func)
-        message.action = anonymise_peer(message.action, "peer_id", anon_func)
+        message.action = anonymise_opt_peer(message.action, "peer", anon_func)
+        message.action = anonymise_opt_peer(message.action, "peer_id", anon_func)
         if isinstance(message.action, (MessageActionChatAddUser, MessageActionChatCreate)):
             message.action.users = [anon_func(uid) for uid in message.action.users]
         elif isinstance(message.action, MessageActionChatDeleteUser):
@@ -201,7 +202,7 @@ def anonymise_metadata(message: ExtendedMessage | MessageService, anon_func):
     return message
 
 
-def anonymise_peer(object, path_to_peer, anon_func):
+def anonymise_opt_peer(object, path_to_peer, anon_func):
     # TODO: fix for path with parts?
     path_parts = path_to_peer.split('.')
     peer_obj = getattr(object, path_parts[0], None)
@@ -210,13 +211,18 @@ def anonymise_peer(object, path_to_peer, anon_func):
             peer_obj = getattr(peer_obj, path_parts[i], None)
 
     if peer_obj is not None:
-        if isinstance(peer_obj, PeerChannel):
-            setattr(peer_obj, "channel_id", anon_func(peer_obj.channel_id))
-        elif isinstance(peer_obj, PeerUser):
-            setattr(peer_obj, "user_id", anon_func(peer_obj.user_id))
-        elif isinstance(peer_obj, PeerChat):
-            setattr(peer_obj, "chat_id", anon_func(peer_obj.chat_id))
+        peer_obj = anonymise_peer(peer_obj, anon_func)
     return object
+
+
+def anonymise_peer(obj: TypePeer, anon_func):
+    if isinstance(obj, PeerChannel):
+        setattr(obj, "channel_id", anon_func(obj.channel_id))
+    elif isinstance(obj, PeerUser):
+        setattr(obj, "user_id", anon_func(obj.user_id))
+    elif isinstance(obj, PeerChat):
+        setattr(obj, "chat_id", anon_func(obj.chat_id))
+    return obj
 
 
 # First is self, so take from index 1 on.
