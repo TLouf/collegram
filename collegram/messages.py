@@ -112,7 +112,9 @@ def get_comments(
     return comments
 
 
-def preprocess(message: Message | MessageService, anon_func, media_dict, media_save_path) -> ExtendedMessage:
+def preprocess(
+    message: Message | MessageService, anon_func, media_dict, media_save_path
+) -> ExtendedMessage | MessageService:
     preproced_message = message # TODO: copy?
     if isinstance(message, Message):
         preproced_message = ExtendedMessage.from_message(preproced_message)
