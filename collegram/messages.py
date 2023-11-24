@@ -43,7 +43,7 @@ def get_channel_messages(client: TelegramClient, channel: str | Channel, dt_from
     '''
     dt_to exclusive
     '''
-    offset_id = 0
+    message_id = 0
     limit = 10000
     all_messages = []
     total_messages = 0
@@ -51,21 +51,21 @@ def get_channel_messages(client: TelegramClient, channel: str | Channel, dt_from
 
     while keep_going:
         chunk_messages = []
-        logger.info(f"Current Offset ID is: {offset_id}; Total Messages: {total_messages}")
+        logger.info(f"Current Offset ID is: {message_id}; Total Messages: {total_messages}")
         # Telethon docs are misleading, `offset_date` is in fact a datetime.
         messages = client.iter_messages(
             entity=channel,
             offset_date=dt_to,
-            offset_id=offset_id,
+            offset_id=message_id,
             limit=limit,
         )
 
         for message in messages:
+            message_id = message.id
             # Take messages in until we've gone further than `date_until` in the past
             # (works because HistoryRequest gets messages in reverse chronological order
             # by default)
             if message.date >= dt_from:
-                message_id = message.id
                 chunk_messages.append(
                     preprocess(message, anon_func, media_dict, media_save_path)
                 )
@@ -83,7 +83,6 @@ def get_channel_messages(client: TelegramClient, channel: str | Channel, dt_from
             # Needed when reaching first message ever posted
             keep_going = False
 
-        offset_id = message.id
         all_messages.extend(chunk_messages)
         total_messages = len(all_messages)
 
