@@ -90,7 +90,6 @@ if __name__ == '__main__':
             logger.info(f"{channel_data.full_chat.participants_count} participants, {channel_data.full_chat.about}")
 
             anon_map_save_path = paths.raw_data / 'anon_maps' / f"{channel_id}.json"
-            anon_map_save_path.parent.mkdir(exist_ok=True, parents=True)
             anonymiser.update_from_disk(anon_map_save_path)
 
             channel_save_path = paths.raw_data / 'channels' / f"{channel_id}.json"

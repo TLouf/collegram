@@ -42,6 +42,7 @@ class HMAC_anonymiser:
             self.anon_map.update(json.loads(save_path.read_text()))
 
     def save_map(self, save_path):
+        save_path.parent.mkdir(exist_ok=True, parents=True)
         save_path.write_text(json.dumps(self.anon_map))
 
     @property
