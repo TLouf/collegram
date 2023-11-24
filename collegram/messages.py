@@ -64,9 +64,16 @@ def get_channel_messages(client: TelegramClient, channel: str | Channel, dt_from
             # (works because HistoryRequest gets messages in reverse chronological order
             # by default)
             if message.date >= dt_from:
-                chunk_messages.append(preprocess(message, anon_func, media_dict, media_save_path))
+                message_id = message.id
+                chunk_messages.append(
+                    preprocess(message, anon_func, media_dict, media_save_path)
+                )
                 if getattr(message, "replies", None) is not None and message.replies.comments:
-                    chunk_messages.extend(get_comments(client, channel, message.id, anon_func))
+                    chunk_messages.extend(
+                        get_comments(
+                            client, channel, message_id, anon_func, media_dict, media_save_path
+                        )
+                    )
             else:
                 keep_going = False
                 break
@@ -82,7 +89,9 @@ def get_channel_messages(client: TelegramClient, channel: str | Channel, dt_from
     return all_messages
 
 
-def get_comments(client: TelegramClient, channel: str | Channel, message_id, anon_func)-> list[ExtendedMessage]:
+def get_comments(
+    client: TelegramClient, channel: str | Channel, message_id, anon_func, media_dict, media_save_path
+)-> list[ExtendedMessage]:
     result = client(GetRepliesRequest(
         peer=channel,
         msg_id=message_id,
@@ -97,7 +106,7 @@ def get_comments(client: TelegramClient, channel: str | Channel, message_id, ano
 
     comments = []
     for m in result.messages:
-        preprocessed_m = preprocess(m, anon_func)
+        preprocessed_m = preprocess(m, anon_func, media_dict, media_save_path)
         preprocessed_m.comments_msg_id = message_id
         comments.append(preprocessed_m)
     return comments
