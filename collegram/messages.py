@@ -170,8 +170,9 @@ def anonymise_metadata(message: ExtendedMessage | MessageService, anon_func):
         if message.replies is not None:
             message.replies.channel_id = anon_func(message.replies.channel_id)
             if message.replies.recent_repliers is not None:
-                for u in message.replies.recent_repliers:
-                    u.user_id = anon_func(u.user_id)
+                for r in message.replies.recent_repliers:
+                    # Repliers are not necessarily users, can be a channel.
+                    r = anonymise_peer(r, anon_func)
 
         if message.fwd_from is not None:
             message.raw_fwd_from_channel_id = getattr(message.fwd_from.from_id, 'channel_id', None)
