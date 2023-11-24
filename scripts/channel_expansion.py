@@ -74,17 +74,20 @@ if __name__ == '__main__':
             continue
 
         new_channels = set()
-        for chat in listed_channel_data.chats:
+        for chat_from_listed in listed_channel_data.chats:
             anonymiser = collegram.utils.HMAC_anonymiser()
             channel_data = (
                 listed_channel_data
-                if chat.id == listed_channel_data.full_chat.id
+                if chat_from_listed.id == listed_channel_data.full_chat.id
                 else collegram.channels.get_full(client, channel_identifier)
             )
             if channel_data is None:
-                logger.info(f"could not get data for channel {chat.id}")
+                logger.info(f"could not get data for channel {chat_from_listed.id}")
                 continue
 
+            # Ensure we're using a raw `chat`, and not one from `listed_channel_data`
+            # that may have been anonymised at some point.
+            chat = [c for c in channel_data.chats if c.id == channel_data.full_chat.id][0]
             channel_id = chat.id
             logger.info(f'---------------- {channel_id} ----------------')
             logger.info(f"{channel_data.full_chat.participants_count} participants, {channel_data.full_chat.about}")
