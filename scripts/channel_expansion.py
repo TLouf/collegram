@@ -73,6 +73,7 @@ if __name__ == '__main__':
             logger.info(f"could not get data for listed channel {channel_identifier}")
             continue
 
+        new_channels = set()
         for chat in listed_channel_data.chats:
             anonymiser = collegram.utils.HMAC_anonymiser()
             channel_data = (
@@ -96,10 +97,8 @@ if __name__ == '__main__':
             channel_save_path.parent.mkdir(exist_ok=True, parents=True)
             if channel_save_path.exists():
                 channel_saved_data = json.loads(channel_save_path.read_text())
-                new_channels = set(channel_saved_data.get("forwards_from", {}))
             else:
                 channel_saved_data = {}
-                new_channels = set()
 
             users_list = collegram.users.get_channel_users(
                 client, chat, anonymiser.anonymise
