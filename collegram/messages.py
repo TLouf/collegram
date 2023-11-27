@@ -5,6 +5,7 @@ import inspect
 import logging
 from typing import TYPE_CHECKING
 
+from telethon.errors import MsgIdInvalidError
 from telethon.helpers import add_surrogate, del_surrogate
 from telethon.tl.functions.messages import GetRepliesRequest
 from telethon.tl.types import (
@@ -90,19 +91,23 @@ def get_channel_messages(client: TelegramClient, channel: str | Channel, dt_from
 
 
 def get_comments(
-    client: TelegramClient, channel: str | Channel, message_id, anon_func, media_dict, media_save_path
+    client: TelegramClient, channel: str | Channel, message_id: int, anon_func, media_dict, media_save_path
 )-> list[ExtendedMessage]:
-    result = client(GetRepliesRequest(
-        peer=channel,
-        msg_id=message_id,
-        offset_id=0,
-        offset_date=datetime.datetime.now(),
-        add_offset=0,
-        limit=-1,
-        max_id=0,
-        min_id=0,
-        hash=0
-    ))
+    try:
+        result = client(GetRepliesRequest(
+            peer=channel,
+            msg_id=message_id,
+            offset_id=0,
+            offset_date=datetime.datetime.now(),
+            add_offset=0,
+            limit=-1,
+            max_id=0,
+            min_id=0,
+            hash=0
+        ))
+    except MsgIdInvalidError:
+        logger.warning(f"no replies found for message ID {message_id}")
+        return []
 
     comments = []
     for m in result.messages:
