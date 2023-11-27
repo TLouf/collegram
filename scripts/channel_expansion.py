@@ -70,7 +70,7 @@ if __name__ == '__main__':
         # read all of its chats.
         listed_channel_data = collegram.channels.get_full(client, channel_identifier)
         if listed_channel_data is None:
-            logger.info(f"could not get data for listed channel {channel_identifier}")
+            logger.warning(f"could not get data for listed channel {channel_identifier}")
             continue
 
         new_channels = set()
@@ -82,7 +82,7 @@ if __name__ == '__main__':
                 else collegram.channels.get_full(client, channel_identifier)
             )
             if channel_data is None:
-                logger.info(f"could not get data for channel {chat_from_listed.id}")
+                logger.warning(f"could not get data for channel {chat_from_listed.id}")
                 continue
 
             # Ensure we're using a raw `chat`, and not one from `listed_channel_data`

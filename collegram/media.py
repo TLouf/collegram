@@ -57,7 +57,7 @@ def download_from_dict(
             try:
                 client.download_media(media_to_dl[mtype][media_id], savedir_path / f"{media_id}")
             except FileReferenceExpiredError:
-                logger.info(f"Reference expired for media {media_id}")
+                logger.warning(f"Reference expired for media {media_id}")
 
 
 def download_from_message_id(client, channel_username: str, message_id: int, savedir_path):
