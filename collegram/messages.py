@@ -6,7 +6,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from telethon.errors import MsgIdInvalidError
-from telethon.helpers import add_surrogate, del_surrogate
+from telethon.helpers import add_surrogate
 from telethon.tl.functions.messages import GetRepliesRequest
 from telethon.tl.types import (
     Message,
@@ -128,6 +128,8 @@ def preprocess(
     preproced_message = anonymise_metadata(preproced_message, anon_func)
     return preproced_message
 
+def del_surrogate(text):
+    return text.encode('utf-16', 'surrogatepass').decode('utf-16', 'surrogatepass')
 
 def preprocess_entities(message: ExtendedMessage, anon_func) -> ExtendedMessage:
     anon_message = message # TODO: copy?
