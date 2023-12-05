@@ -18,13 +18,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def get_downloadable_media(messages: list[Message], media_dict: dict, media_save_path: Path) -> dict[int, MessageMediaDocument | MessageMediaPhoto]:
-    media_dict = {}
-    for m in messages:
-        preprocess_from_message(m, media_dict, media_save_path)
-    return media_dict
-
-
 def preprocess_from_message(message: Message, media_dict: dict, media_save_path: Path):
     media = message.media
     if media is not None:
@@ -62,5 +55,6 @@ def download_from_dict(
 
 def download_from_message_id(client, channel_username: str, message_id: int, savedir_path):
     m = client.get_messages(channel_username, ids=message_id)
-    media_dict = get_downloadable_media([m])
+    media_dict = {'photos': {}, 'documents': {}}
+    media_dict = preprocess_from_message(m, media_dict, savedir_path)
     download_from_dict(client, media_dict, savedir_path)
