@@ -40,7 +40,7 @@ def get_channel_participants(client: TelegramClient, channel_username):
     return all_participants
 
 
-def get_channel_users(client: TelegramClient, channel: str | Channel, anon_func) -> list(User):
+def get_channel_users(client: TelegramClient, channel: str | Channel, anon_func) -> list[User]:
     try:
         participants = client.iter_participants(channel)
     except ChatAdminRequiredError:
