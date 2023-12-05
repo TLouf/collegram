@@ -33,7 +33,7 @@ class HMAC_anonymiser:
                 data_str = str(data)
                 data = self.anon_map.get(data_str)
                 if data is None:
-                    data = hmac.digest(self.key, data_str.encode('utf-8'), 'sha256').hex()
+                    data = hmac.digest(self.key, data_str.encode('utf-8', 'surrogatepass'), 'sha256').hex()
                     self.anon_map[data_str] = data
         return data
 
