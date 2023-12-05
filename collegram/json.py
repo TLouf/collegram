@@ -164,9 +164,11 @@ def messages_to_dict(messages: list[Message]):
             # There can be big number of different reactions, so keep this as dict
             # (converted to struct by Polars).
             reaction_d = {}
-            for r in m.reactions.results:
-                # Cast `document_id` to string to have consistent type.
-                reaction_d[r.reaction.emoticon or str(r.reaction.document_id)] = r.count
+            if m.reactions.results is not None:
+                for r in m.reactions.results:
+                    # Cast `document_id` to string to have consistent type.
+                    key = r.reaction.emoticon or str(r.reaction.document_id)
+                    reaction_d[key] = r.count
             m_dict['reactions'].append(reaction_d)
         else:
             m_dict['reactions'].append(None)
