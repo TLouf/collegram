@@ -10,9 +10,9 @@ class HMAC_anonymiser:
         if key is None:
             key = os.environ[key_env_var_name]
         self.key = bytes.fromhex(key)
-        self.anon_map = {} if anon_map is None else anon_map
+        self.anon_map: dict[str, str] = {} if anon_map is None else anon_map
 
-    def anonymise(self, data: int | str | None, safe: bool = False) -> str:
+    def anonymise(self, data: int | str | None, safe: bool = False) -> str | None:
         """Anonymise the provided data.
 
         Parameters
@@ -46,5 +46,5 @@ class HMAC_anonymiser:
         save_path.write_text(json.dumps(self.anon_map))
 
     @property
-    def inverse_anon_map(self):
+    def inverse_anon_map(self) -> dict[str, str]:
         return {value: key for key, value in self.anon_map.items()}
