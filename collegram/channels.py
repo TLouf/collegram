@@ -75,3 +75,20 @@ def anonymise_full_chat(full_chat: ChannelFull, anon_func, safe=True) -> Channel
     full_chat.linked_chat_id = anon_func(full_chat.linked_chat_id, safe=safe)
     full_chat.migrated_from_chat_id = anon_func(full_chat.migrated_from_chat_id, safe=safe)
     return full_chat
+
+def get_full_anon_dict(full_chat: ChatFull, anon_func, safe=True):
+    channel_save_data = json.loads(full_chat.to_json())
+    for c in channel_save_data['chats']:
+        c['photo'] = None
+        c['id'] = anon_func(c['id'], safe=safe)
+        c['username'] = anon_func(c['username'], safe=safe)
+        c['title'] = anon_func(c['title'], safe=safe)
+        if c['usernames'] is not None:
+            for un in c['usernames']:
+                un['username'] = anon_func(un['username'], safe=safe)
+    full_channel = channel_save_data['full_chat']
+    full_channel['chat_photo'] = None
+    full_channel['id'] = anon_func(full_channel['id'], safe=safe)
+    full_channel['linked_chat_id'] = anon_func(full_channel['linked_chat_id'], safe=safe)
+    full_channel['migrated_from_chat_id'] = anon_func(full_channel['migrated_from_chat_id'], safe=safe)
+    return channel_save_data
