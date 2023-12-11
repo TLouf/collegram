@@ -31,6 +31,10 @@ class MessageService(MessageBase):
 class Action(msgspec.Struct):
     pass # TODO?
 
+class MaybeForwardedMessage(msgspec.Struct):
+    id: int
+    fwd_from: FwdFrom | None = None
+
 class Message(MessageBase):
     message: str
     mentioned: bool | None = None
@@ -99,6 +103,7 @@ class Reaction(msgspec.Struct):
 
 MessageJSONDecodeType = Union[Message, MessageService]
 MESSAGE_JSON_DECODER = msgspec.json.Decoder(type=MessageJSONDecodeType)
+FAST_FORWARD_DECODER = msgspec.json.Decoder(type=MaybeForwardedMessage)
 
 
 def read_message_json(path: Path) -> list[MessageJSONDecodeType]:
