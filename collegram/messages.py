@@ -144,9 +144,11 @@ def preprocess_entities(message: ExtendedMessage, anon_func) -> ExtendedMessage:
             e_start = e.offset
             e_end = e.offset + e.length
             if isinstance(e, (MessageEntityMention, MessageEntityMentionName)):
-                anon_mention = anon_func(del_surrogate(surr_text[e_start + 1: e_end]))
+                # A MessageEntityMention starts with an "@", which we keep as is.
+                start = e_start + 1 * int(isinstance(e, MessageEntityMention))
+                anon_mention = anon_func(del_surrogate(surr_text[start: e_end]))
                 anon_message.text_mentions.add(anon_mention)
-                anon_subs.append((e_start + 1, e_end, anon_mention))
+                anon_subs.append((start, e_end, anon_mention))
             elif isinstance(e, MessageEntityEmail):
                 email = del_surrogate(surr_text[e_start: e_end])
                 # Keep the email format to be able to identify this as an email later on.
