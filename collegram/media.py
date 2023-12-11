@@ -13,12 +13,15 @@ from telethon.tl.types import (
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from telethon import TelegramClient
     from telethon.tl.types import Message
 
 logger = logging.getLogger(__name__)
 
+MediaDictType = dict[str, dict[str, MessageMediaDocument | MessageMediaPhoto]]
 
-def preprocess_from_message(message: Message, media_dict: dict, media_save_path: Path):
+
+def preprocess_from_message(message: Message, media_dict: MediaDictType, media_save_path: Path):
     media = message.media
     if media is not None:
         if isinstance(media, MessageMediaPhoto):
@@ -39,7 +42,7 @@ def preprocess_from_message(message: Message, media_dict: dict, media_save_path:
 
 
 def download_from_dict(
-    client, media_to_dl: dict[int, MessageMediaDocument | MessageMediaPhoto], savedir_path, only_photos: bool = False,
+    client, media_to_dl: MediaDictType, savedir_path: Path, only_photos: bool = False,
 ):
     savedir_path.mkdir(exist_ok=True, parents=True)
     ids_to_skip = set([p.stem for p in savedir_path.iterdir()])
@@ -53,8 +56,10 @@ def download_from_dict(
                 logger.warning(f"Reference expired for media {media_id}")
 
 
-def download_from_message_id(client, channel_username: str, message_id: int, savedir_path):
+def download_from_message_id(
+    client: TelegramClient, channel_username: str, message_id: int, savedir_path: Path
+):
     m = client.get_messages(channel_username, ids=message_id)
-    media_dict = {'photos': {}, 'documents': {}}
+    media_dict: MediaDictType = {'photos': {}, 'documents': {}}
     media_dict = preprocess_from_message(m, media_dict, savedir_path)
     download_from_dict(client, media_dict, savedir_path)
