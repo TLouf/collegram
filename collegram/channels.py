@@ -65,7 +65,8 @@ def anonymise_chat(chat: Channel, anon_func, safe=True) -> Channel:
     chat.username = anon_func(chat.username, safe=safe)
     chat.title = anon_func(chat.title, safe=safe)
     if chat.usernames is not None:
-        chat.usernames = [anon_func(username, safe=safe) for username in chat.usernames]
+        for un in chat.usernames:
+            un.username = anon_func(un.username, safe=safe)
     return chat
 
 def anonymise_full_chat(full_chat: ChannelFull, anon_func, safe=True) -> ChannelFull:
