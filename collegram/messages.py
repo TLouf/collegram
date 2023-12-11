@@ -34,13 +34,16 @@ from telethon.tl.types import (
 import collegram.media
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from telethon import TelegramClient
     from telethon.tl.types import Channel
 
+    from collegram.media import MediaDictType
+
 logger = logging.getLogger(__name__)
 
-
-def get_channel_messages(client: TelegramClient, channel: str | Channel, dt_from: datetime.datetime, dt_to: datetime.datetime, anon_func, media_dict, media_save_path):
+def get_channel_messages(client: TelegramClient, channel: str | Channel, dt_from: datetime.datetime, dt_to: datetime.datetime, anon_func, media_dict: MediaDictType, media_save_path: Path):
     '''
     dt_to exclusive
     '''
@@ -91,7 +94,7 @@ def get_channel_messages(client: TelegramClient, channel: str | Channel, dt_from
 
 
 def get_comments(
-    client: TelegramClient, channel: str | Channel, message_id: int, anon_func, media_dict, media_save_path
+    client: TelegramClient, channel: str | Channel, message_id: int, anon_func, media_dict: MediaDictType, media_save_path: Path
 )-> list[ExtendedMessage]:
     try:
         result = client(GetRepliesRequest(
@@ -118,7 +121,7 @@ def get_comments(
 
 
 def preprocess(
-    message: Message | MessageService, anon_func, media_dict, media_save_path
+    message: Message | MessageService, anon_func, media_dict: MediaDictType, media_save_path: Path
 ) -> ExtendedMessage | MessageService:
     preproced_message = message # TODO: copy?
     if isinstance(message, Message):
