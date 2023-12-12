@@ -3,6 +3,7 @@ import itertools
 import json
 import logging
 import os
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from pprint import pprint
 
@@ -42,7 +43,17 @@ def save_all_chats_messages(client, chat, global_dt_to, paths, all_media_dict, a
 if __name__ == '__main__':
     load_dotenv()
     paths = collegram.paths.ProjectPaths()
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logger.setLevel(logging.INFO)
+    log_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    script_path = paths.proj / 'scripts' / __file__
+    file_handler = RotatingFileHandler(
+        script_path.with_suffix('.log'), backupCount=1, maxBytes=256 * 1024, encoding="utf-8"
+    )
+    file_handler.setFormatter(log_formatter)
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(log_formatter)
+    logger.addHandler(stream_handler)
+    logger.addHandler(file_handler)
 
     # Go up to 30 days ago so that view counts, etc, have more or less reached their final value
     global_dt_to = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=30)
