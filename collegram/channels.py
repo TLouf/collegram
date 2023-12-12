@@ -3,18 +3,21 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, overload
 
 from telethon.errors import ChannelPrivateError
 from telethon.tl.functions.channels import GetFullChannelRequest
 from telethon.tl.functions.contacts import SearchRequest
-from telethon.tl.types import PeerChannel
+from telethon.tl.types import Channel, InputPeerChannel, PeerChannel
 
+import collegram.json
 from collegram.messages import ExtendedMessage
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from telethon import TelegramClient
-    from telethon.tl.types import Channel, ChannelFull, Message
+    from telethon.tl.types import ChannelFull, ChatFull, Message
 
 logger = logging.getLogger(__name__)
 
@@ -31,22 +34,62 @@ def search_from_tgdb(client: TelegramClient, query):
 def search_from_api(client: TelegramClient, query, limit=100):
     return [c.username for c in client(SearchRequest(q=query, limit=limit)).chats]
 
-def get(client: TelegramClient, channel_id: int | str) -> Channel | None:
-    # channel_id can be integer ID or username
+@overload
+def get_input_peer(channel_id: str, access_hash: int | None) -> str:
+    ...
+@overload
+def get_input_peer(channel_id: int, access_hash: int) -> InputPeerChannel:
+    ...
+@overload
+def get_input_peer(channel_id: int, access_hash: None) -> PeerChannel:
+    ...
+def get_input_peer(channel_id: str | int, access_hash: int | None = None):
+    if isinstance(channel_id, str):
+        return channel_id
+    elif access_hash is None:
+        return PeerChannel(channel_id)
+    else:
+        return InputPeerChannel(channel_id, access_hash)
+
+def get(
+    client: TelegramClient, channel: int | str, access_hash: int | None = None,
+) -> Channel | None:
+    input_chan = get_input_peer(channel, access_hash)
     try:
-        return client.get_entity(PeerChannel(channel_id))
+        return client.get_entity(input_chan)
     except ChannelPrivateError:
+        channel_id = channel.id if isinstance(channel, Channel) else channel
         logger.info(f"found private channel {channel_id}")
+        return
 
 
-def get_full(client: TelegramClient, channel_id: int | str) -> ChannelFull | None:
+def get_full(
+    client: TelegramClient, channel: Channel | int | str, access_hash: int | None = None,
+    channels_dir: Path | None = None, anon_func_to_save=None
+) -> ChannelFull | None:
+    input_chan = channel if isinstance(channel, (Channel, PeerChannel)) else get_input_peer(channel, access_hash)
     try:
-        return client(GetFullChannelRequest(channel=channel_id))
-    except ChannelPrivateError:
+        full_chat = client(GetFullChannelRequest(channel=input_chan))
+        if anon_func_to_save is not None and channels_dir is not None:
+            full_chat_d = get_full_anon_dict(full_chat, anon_func_to_save)
+            p = channels_dir / f"{full_chat.full_chat.id}.json"
+            p.write_text(json.dumps(full_chat_d))
+        return full_chat
+    except (ChannelPrivateError, ValueError):
+        channel_id = channel.id if isinstance(channel, Channel) else channel
         logger.info(f"found private channel {channel_id}")
+        return
+
+def get_or_load_full(client: TelegramClient, channel_id: int | str, channels_dir: Path, anon_func_to_save=None, access_hash: int | None = None) -> dict | ChannelFull | None:
+    p = channels_dir / f"{channel_id}.json"
+    if p.exists():
+        # TODO: implement object in json module to have instance of custom class returned here
+        return json.loads(p.read_text())
+    else:
+        return get_full(client, channel_id, access_hash, channels_dir, anon_func_to_save)
 
 
-def from_forwarded(messages: list[Message]) -> set[str]:
+def from_forwarded(messages: list[Message]) -> set[int]:
     new_channels = {
         m.raw_fwd_from_channel_id
         for m in messages
