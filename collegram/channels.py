@@ -98,6 +98,40 @@ def from_forwarded(messages: list[Message]) -> set[int]:
     return new_channels
 
 
+def recover_fwd_from_msgs(messages_path: Path) -> dict[int, int]:
+    chans_fwd_msg = {}
+    if messages_path.is_dir():
+        fpaths_iter = messages_path.glob('*.jsonl')
+    elif messages_path.exists():
+        fpaths_iter = [messages_path]
+    else:
+        fpaths_iter = []
+
+    for p in fpaths_iter:
+        messages = collegram.json.FAST_FORWARD_DECODER.decode_lines(p.read_text())
+        for m in messages:
+            if m.fwd_from is not None:
+                from_chan_id = getattr(m.fwd_from.from_id, 'channel_id', None)
+                if from_chan_id is not None:
+                    chans_fwd_msg[from_chan_id] = m.id
+
+    return chans_fwd_msg
+
+def fwd_from_msg_ids(
+    client: TelegramClient, chat: Channel, chans_fwd_msg: dict[int, int],
+    channels_dir: Path | None = None, anon_func_to_save=None,
+):
+    forwarded_channels = {}
+    for chan_id, m_id in chans_fwd_msg.items():
+        m = client.get_messages(entity=chat, ids=m_id)
+        fwd_full_chan = collegram.channels.get_full(
+            client, m.fwd_from.from_id, None, channels_dir, anon_func_to_save,
+        )
+        if fwd_full_chan is not None:
+            forwarded_channels[chan_id] = fwd_full_chan
+    return forwarded_channels
+
+
 def get_chat_save_dict(chat: Channel, anon_func, safe=True) -> dict:
     chat_dict = json.loads(anonymise_chat(chat, anon_func, safe=safe).to_json())
     return chat_dict
@@ -120,6 +154,7 @@ def anonymise_full_chat(full_chat: ChannelFull, anon_func, safe=True) -> Channel
     return full_chat
 
 def get_full_anon_dict(full_chat: ChatFull, anon_func, safe=True):
+    # TODO: anon mentions in about
     channel_save_data = json.loads(full_chat.to_json())
     for c in channel_save_data['chats']:
         c['photo'] = None
