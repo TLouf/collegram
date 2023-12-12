@@ -47,7 +47,7 @@ if __name__ == '__main__':
     logger.info(f"{list(channels)}")
     channels = set([channels[-1]])
     processed_channels = set()
-    chans_saved_on_disk = set([p.stem for p in channels_dir.iterdir()])
+    chans_saved_on_disk = set([int(p.stem) for p in channels_dir.iterdir()])
     nr_remaining_channels = len(channels)
     nr_processed_channels = 0
     while nr_remaining_channels > 0:
