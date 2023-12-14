@@ -56,6 +56,9 @@ if __name__ == '__main__':
         # be a str or an int. So first we get the encompassing full channel, to then
         # read all of its chats.
         channel_identifier = channels.pop()
+        if isinstance(channel_identifier, str) and channel_identifier.isdigit():
+            logger.error(f"something still wrong, encountered {channel_identifier}")
+            channel_identifier = int(channel_identifier)
         listed_channel_data = collegram.channels.get_or_load_full(
             client, channel_identifier, channels_dir,
         )
@@ -172,10 +175,13 @@ if __name__ == '__main__':
             # Make message queries only when strictly necessary. If the channel was seen
             # in new messages, no need to get it through `chans_fwd_msg_to_query`.
             inverse_anon_map = anonymiser.inverse_anon_map
-            fwd_chans_from_saved_msg_ids = {
-                inverse_anon_map.get(c, c): c
-                for c in fwd_chans_from_saved_msg.keys()
-            }
+            fwd_chans_from_saved_msg_ids = {}
+            for c in fwd_chans_from_saved_msg.keys():
+                fwd_id = inverse_anon_map.get(c)
+                if fwd_id is not None:
+                    fwd_chans_from_saved_msg_ids[int(fwd_id)] = c
+                else:
+                    logger.error(f"anon_map of {channel_id} is incomplete, {c} was not found.")
             chans_to_recover = (
                 set(fwd_chans_from_saved_msg_ids.keys())
                  .difference(forwarded_chans_ids)
@@ -198,10 +204,13 @@ if __name__ == '__main__':
 
             # What new channels should we explore?
             inverse_anon_map = anonymiser.inverse_anon_map
-            saved_fwd_from = set([
-                inverse_anon_map.get(c, c)
-                for c in channel_saved_data.get('forwards_from', [])
-            ])
+            saved_fwd_from = set()
+            for c in channel_saved_data.get('forwards_from', []):
+                fwd_id = inverse_anon_map.get(c)
+                if fwd_id is not None:
+                    saved_fwd_from.add(int(fwd_id))
+                else:
+                    logger.error(f"anon_map of {channel_id} is incomplete, {c} was not found.")
             new_channels = new_channels.union(forwarded_chans_ids).union(saved_fwd_from)
             processed_channels.add(channel_id)
             nr_processed_channels += 1
