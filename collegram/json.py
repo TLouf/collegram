@@ -105,11 +105,11 @@ MessageJSONDecodeType = Union[Message, MessageService]
 MESSAGE_JSON_DECODER = msgspec.json.Decoder(type=MessageJSONDecodeType)
 FAST_FORWARD_DECODER = msgspec.json.Decoder(type=MaybeForwardedMessage)
 
-def read_messages_json(path: Path) -> list[MessageJSONDecodeType]:
-    return MESSAGE_JSON_DECODER.decode_lines(path.read_text())
+def read_messages_json(path: Path, decoder: msgspec.json.Decoder = MESSAGE_JSON_DECODER):
+    return decoder.decode_lines(path.read_text())
 
-def read_message(message: str) -> MessageJSONDecodeType:
-    return MESSAGE_JSON_DECODER.decode(message)
+def read_message(message: str, decoder: msgspec.json.Decoder = MESSAGE_JSON_DECODER):
+    return decoder.decode(message)
 
 
 def messages_to_dict(messages: list[Message]):
