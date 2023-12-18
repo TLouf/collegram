@@ -114,7 +114,8 @@ def read_message(message: str, decoder: msgspec.json.Decoder = MESSAGE_JSON_DECO
 def yield_message(fpath: Path, decoder: msgspec.json.Decoder = MESSAGE_JSON_DECODER):
     with open(fpath, "r") as f:
         for line in f:
-            yield read_message(line, decoder)
+            if line:
+                yield read_message(line, decoder)
 
 def messages_to_dict(messages: list[Message]):
     # can also determine nested from Message.__annotations__, but not super robust
