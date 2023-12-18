@@ -11,7 +11,6 @@ from telethon.tl.functions.contacts import SearchRequest
 from telethon.tl.types import Channel, InputPeerChannel, PeerChannel
 
 import collegram.json
-from collegram.messages import ExtendedMessage
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -87,15 +86,6 @@ def get_or_load_full(client: TelegramClient, channel_id: int | str, channels_dir
         return json.loads(p.read_text())
     else:
         return get_full(client, channel_id, access_hash, channels_dir, anon_func_to_save)
-
-
-def from_forwarded(messages: list[Message]) -> set[int]:
-    new_channels = {
-        m.raw_fwd_from_channel_id
-        for m in messages
-        if isinstance(m, ExtendedMessage) and m.raw_fwd_from_channel_id is not None
-    }
-    return new_channels
 
 
 def recover_fwd_from_msgs(messages_path: Path) -> dict[int, int]:

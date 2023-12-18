@@ -43,7 +43,12 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-def get_channel_messages(client: TelegramClient, channel: str | Channel, dt_from: datetime.datetime, dt_to: datetime.datetime, anon_func, media_dict: MediaDictType, media_save_path: Path):
+def get_channel_messages(
+    client: TelegramClient, channel: str | Channel,
+    dt_from: datetime.datetime, dt_to: datetime.datetime,
+    forwards_set: set, anon_func,
+    media_dict: MediaDictType, media_save_path: Path,
+):
     '''
     dt_to exclusive
     '''
@@ -71,12 +76,12 @@ def get_channel_messages(client: TelegramClient, channel: str | Channel, dt_from
             # by default)
             if message.date >= dt_from:
                 chunk_messages.append(
-                    preprocess(message, anon_func, media_dict, media_save_path)
+                    preprocess(message, forwards_set, anon_func, media_dict, media_save_path)
                 )
                 if getattr(message, "replies", None) is not None and message.replies.comments:
                     chunk_messages.extend(
                         get_comments(
-                            client, channel, message_id, anon_func, media_dict, media_save_path
+                            client, channel, message_id, forwards_set, anon_func, media_dict, media_save_path
                         )
                     )
             else:
@@ -93,9 +98,9 @@ def get_channel_messages(client: TelegramClient, channel: str | Channel, dt_from
     return all_messages
 
 
-def get_comments(
-    client: TelegramClient, channel: str | Channel, message_id: int, anon_func, media_dict: MediaDictType, media_save_path: Path
-)-> list[ExtendedMessage]:
+def get_comments_iter(
+    client: TelegramClient, channel: str | Channel, message_id: int,
+)-> list[Message]:
     try:
         result = client(GetRepliesRequest(
             peer=channel,
@@ -108,27 +113,60 @@ def get_comments(
             min_id=0,
             hash=0
         ))
+        return result.messages
     except MsgIdInvalidError:
         logger.warning(f"no replies found for message ID {message_id}")
         return []
 
+def get_comments(
+    client: TelegramClient, channel: str | Channel, message_id: int, forwards_set: set, anon_func, media_dict: MediaDictType, media_save_path: Path
+)-> list[ExtendedMessage]:
     comments = []
-    for m in result.messages:
-        preprocessed_m = preprocess(m, anon_func, media_dict, media_save_path)
+    for m in get_comments_iter(client, channel, message_id):
+        preprocessed_m = preprocess(m, forwards_set, anon_func, media_dict, media_save_path)
         preprocessed_m.comments_msg_id = message_id
         comments.append(preprocessed_m)
     return comments
 
+def save_channel_messages(
+    client: TelegramClient, channel: str | Channel,
+    dt_from: datetime.datetime, dt_to: datetime.datetime,
+    forwards_set: set, anon_func, messages_save_path,
+    media_dict: MediaDictType, media_save_path: Path,
+):
+    '''
+    dt_to exclusive
+    '''
+    # Telethon docs are misleading, `offset_date` is in fact a datetime.
+    with open(messages_save_path, "a") as f:
+        for message in client.iter_messages(entity=channel, offset_date=dt_to):
+            message_id = message.id
+            # Take messages in until we've gone further than `date_until` in the past
+            # (works because HistoryRequest gets messages in reverse chronological order
+            # by default)
+            if message.date >= dt_from:
+                preprocessed_m = preprocess(message, forwards_set, anon_func, media_dict, media_save_path)
+                f.write(preprocessed_m.to_json())
+                f.write('\n')
+                if getattr(message, "replies", None) is not None and message.replies.comments:
+                    for m in get_comments_iter(client, channel, message_id):
+                        preprocessed_m = preprocess(m, forwards_set, anon_func, media_dict, media_save_path)
+                        preprocessed_m.comments_msg_id = message_id
+                        f.write(preprocessed_m.to_json())
+                        f.write('\n')
+            else:
+                break
+
 
 def preprocess(
-    message: Message | MessageService, anon_func, media_dict: MediaDictType, media_save_path: Path
+    message: Message | MessageService, forwards_set: set, anon_func, media_dict: MediaDictType, media_save_path: Path
 ) -> ExtendedMessage | MessageService:
     preproced_message = message # TODO: copy?
     if isinstance(message, Message):
         preproced_message = ExtendedMessage.from_message(preproced_message)
         preproced_message = preprocess_entities(preproced_message, anon_func)
         media_dict = collegram.media.preprocess_from_message(message, media_dict, media_save_path)
-    preproced_message = anonymise_metadata(preproced_message, anon_func)
+    preproced_message = anonymise_metadata(preproced_message, forwards_set, anon_func)
     return preproced_message
 
 def del_surrogate(text):
@@ -170,7 +208,7 @@ def preprocess_entities(message: ExtendedMessage, anon_func) -> ExtendedMessage:
     return anon_message
 
 
-def anonymise_metadata(message: ExtendedMessage | MessageService, anon_func):
+def anonymise_metadata(message: ExtendedMessage | MessageService, forwards_set: set, anon_func):
     message = anonymise_opt_peer(message, "peer_id", anon_func)
     message = anonymise_opt_peer(message, "from_id", anon_func)
 
@@ -186,7 +224,9 @@ def anonymise_metadata(message: ExtendedMessage | MessageService, anon_func):
                     r = anonymise_peer(r, anon_func)
 
         if message.fwd_from is not None:
-            message.raw_fwd_from_channel_id = getattr(message.fwd_from.from_id, 'channel_id', None)
+            fwd_from_channel_id = getattr(message.fwd_from.from_id, 'channel_id', None)
+            if fwd_from_channel_id is not None:
+                forwards_set.add(fwd_from_channel_id)
             message.fwd_from = anonymise_opt_peer(message.fwd_from, "from_id", anon_func)
             message.fwd_from = anonymise_opt_peer(message.fwd_from, "saved_from_peer", anon_func)
             message.fwd_from.from_name = anon_func(message.fwd_from.from_name)

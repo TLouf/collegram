@@ -154,16 +154,15 @@ if __name__ == '__main__':
 
             forwarded_chans_ids = set()
             for dt_from, dt_to in zip(dt_bin_edges[:-1], dt_bin_edges[1:]):
+                chunk_fwds = set()
                 messages_save_path = chat_dir_path / f"{dt_from.date()}_to_{dt_to.date()}.jsonl"
+                messages_save_path.parent.mkdir(exist_ok=True, parents=True)
                 if not messages_save_path.exists():
-                    messages = collegram.messages.get_channel_messages(
-                        client, chat, dt_from, dt_to, anonymiser.anonymise, all_media_dict, media_save_path
+                    collegram.messages.save_channel_messages(
+                        client, chat, dt_from, dt_to, chunk_fwds, anonymiser.anonymise,
+                        messages_save_path, all_media_dict, media_save_path
                     )
-                    messages_save_path.parent.mkdir(exist_ok=True, parents=True)
-                    messages_save_path.write_text("\n".join([m.to_json() for m in messages]))
-
                     anonymiser.save_map(anon_map_save_path)
-                    chunk_fwds = collegram.channels.from_forwarded(messages)
                     new_fwds = chunk_fwds.difference(forwarded_chans_ids)
                     for i in new_fwds:
                         full_chat_d = collegram.channels.get_or_load_full(
