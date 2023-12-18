@@ -108,8 +108,7 @@ def recover_fwd_from_msgs(messages_path: Path) -> dict[int, int]:
         fpaths_iter = []
 
     for p in fpaths_iter:
-        messages = collegram.json.FAST_FORWARD_DECODER.decode_lines(p.read_text())
-        for m in messages:
+        for m in collegram.json.yield_message(p, collegram.json.FAST_FORWARD_DECODER):
             if m.fwd_from is not None:
                 from_chan_id = getattr(m.fwd_from.from_id, 'channel_id', None)
                 if from_chan_id is not None:
