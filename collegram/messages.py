@@ -288,13 +288,11 @@ class ExtendedMessage(Message):
     def from_message(
         cls, message: Message, comments_msg_id: int | None = None,
         text_urls: set[str] | None = None, text_mentions: set[str] | None = None,
-        raw_fwd_from_channel_id: int | None = None,
     ):
         instance = cls(*[getattr(message, a) for a in MESSAGE_INIT_ARGS])
         instance.comments_msg_id = comments_msg_id
         instance.text_urls = set() if text_urls is None else text_urls
         instance.text_mentions = set() if text_mentions is None else text_mentions
-        instance.raw_fwd_from_channel_id = raw_fwd_from_channel_id
         return instance
 
     def to_dict(self):
