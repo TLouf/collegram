@@ -3,6 +3,24 @@ from __future__ import annotations
 import hmac
 import json
 import os
+from queue import PriorityQueue
+from typing import Any
+
+
+class UniquePriorityQueue(PriorityQueue):
+    def _init(self, maxsize):
+        super()._init(maxsize)
+        self.values = set()
+
+    def _put(self, item: tuple[int, Any]):
+        if item[1] not in self.values:
+            self.values.add(item[1])
+            super()._put(item)
+
+    def _get(self):
+        item = super()._get()
+        self.values.remove(item[1])
+        return item
 
 
 class HMAC_anonymiser:
