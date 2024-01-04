@@ -57,26 +57,14 @@ if __name__ == '__main__':
         # read all of its chats.
         channel_identifier = channels.pop()
         if isinstance(channel_identifier, str) and channel_identifier.isdigit():
-            logger.error(f"something still wrong, encountered {channel_identifier}")
             channel_identifier = int(channel_identifier)
-        listed_channel_data = collegram.channels.get_or_load_full(
-            client, channel_identifier, channels_dir,
+        listed_channel_full, listed_channel_data = collegram.channels.get_full(
+            client, channels_dir, channel_id=channel_identifier, force_query=True,
         )
-        if listed_channel_data is None:
+        if listed_channel_data == {} and listed_channel_full is None:
             logger.warning(f"could not get data for listed channel {channel_identifier}")
             nr_remaining_channels -= 1
             continue
-        elif isinstance(listed_channel_data, dict):
-            chat = [
-                c for c in listed_channel_data['chats']
-                if c['id'] == listed_channel_data['full_chat']['id']
-            ][0]
-            # Not optimal because ptentially doing a get_full that has already
-            # been done, but well, it's much more convenient to have proper
-            # channel and chat objects.
-            listed_channel_full = collegram.channels.get_full(client, channel_identifier, chat['access_hash'])
-        else:
-            listed_channel_full = listed_channel_data
 
         if listed_channel_full is None:
             raise ValueError('wtf')
@@ -91,22 +79,15 @@ if __name__ == '__main__':
 
             if channel_id == listed_channel_full.full_chat.id:
                 channel_full = listed_channel_full
+                channel_saved_data = listed_channel_data
             else:
-                channel_data = collegram.channels.get_or_load_full(
-                    client, channel_id, channels_dir, anonymiser.anonymise
+                channel_full, channel_saved_data = collegram.channels.get_full(
+                    client, channels_dir, channel_id=channel_id,
+                    anon_func_to_save=anonymiser.anonymise, force_query=True,
                 )
-                if channel_data is None:
+                if channel_saved_data == {} and channel_full is None:
                     logger.warning(f"could not get data for channel {channel_id}")
                     continue
-                elif isinstance(channel_data, dict):
-                    # Not optimal because ptentially doing a get_full that has already
-                    # been done, but well, it's much more convenient to have proper
-                    # channel and chat objects.
-                    channel_full = collegram.channels.get_full(client, chat, chat.access_hash)
-                    channel_saved_data = channel_data
-                else:
-                    channel_full = channel_data
-                    chans_saved_on_disk.add(channel_id)
 
             if channel_full is None:
                 # this is possible
@@ -165,8 +146,8 @@ if __name__ == '__main__':
                     anonymiser.save_map(anon_map_save_path)
                     new_fwds = chunk_fwds.difference(forwarded_chans_ids)
                     for i in new_fwds:
-                        full_chat_d = collegram.channels.get_or_load_full(
-                            client, i, channels_dir, anonymiser.anonymise
+                        _, full_chat_d = collegram.channels.get_full(
+                            client, channels_dir, channel_id=i, anon_func_to_save=anonymiser.anonymise
                         )
                         chans_saved_on_disk.add(i)
                     forwarded_chans_ids = forwarded_chans_ids.union(new_fwds)

@@ -63,29 +63,39 @@ def get(
 
 
 def get_full(
-    client: TelegramClient, channel: Channel | int | str, access_hash: int | None = None,
-    channels_dir: Path | None = None, anon_func_to_save=None
-) -> ChannelFull | None:
-    input_chan = channel if isinstance(channel, (Channel, PeerChannel)) else get_input_peer(channel, access_hash)
-    try:
-        full_chat = client(GetFullChannelRequest(channel=input_chan))
-        if anon_func_to_save is not None and channels_dir is not None:
-            full_chat_d = get_full_anon_dict(full_chat, anon_func_to_save)
-            p = channels_dir / f"{full_chat.full_chat.id}.json"
-            p.write_text(json.dumps(full_chat_d))
-        return full_chat
-    except (ChannelPrivateError, ValueError):
-        channel_id = channel.id if isinstance(channel, Channel) else channel
-        logger.info(f"found private channel {channel_id}")
-        return
+    client: TelegramClient, channels_dir: Path,
+    channel: Channel | PeerChannel | None = None, channel_id: int | str | None = None,
+    access_hash: int | None = None, anon_func_to_save=None, force_query=False
+) -> tuple[ChannelFull | None, dict]:
+    full_chat = None
+    if channel_id is None and channel is None:
+        raise ValueError("Either `channel` or `channel_id` must be set.")
+    elif channel_id is None:
+        channel_id = channel.id if isinstance(channel, Channel) else channel.channel_id
 
-def get_or_load_full(client: TelegramClient, channel_id: int | str, channels_dir: Path, anon_func_to_save=None, access_hash: int | None = None) -> dict | ChannelFull | None:
-    p = channels_dir / f"{channel_id}.json"
-    if p.exists():
-        # TODO: implement object in json module to have instance of custom class returned here
-        return json.loads(p.read_text())
-    else:
-        return get_full(client, channel_id, access_hash, channels_dir, anon_func_to_save)
+    save_path = channels_dir / f"{channel_id}.json"
+    full_chat_d = json.loads(save_path.read_text()) if save_path.exists() else {}
+    if full_chat_d:
+        chat = [
+            c for c in full_chat_d['chats']
+            if c['id'] == full_chat_d['full_chat']['id']
+        ][0]
+        access_hash = chat['access_hash']
+    if force_query or not full_chat_d:
+    # if force_query and (access_hash is not None or channel is not None):
+        input_chan = (
+            channel if isinstance(channel, (Channel, PeerChannel))
+            else get_input_peer(channel_id, access_hash)
+        )
+        try:
+            full_chat = client(GetFullChannelRequest(channel=input_chan))
+            if anon_func_to_save is not None and channels_dir is not None:
+                full_chat_d = get_full_anon_dict(full_chat, anon_func_to_save)
+                p = channels_dir / f"{full_chat.full_chat.id}.json"
+                p.write_text(json.dumps(full_chat_d))
+        except (ChannelPrivateError, ValueError):
+            logger.info(f"found private channel {channel_id}")
+    return full_chat, full_chat_d
 
 
 def recover_fwd_from_msgs(messages_path: Path) -> dict[int, int]:
