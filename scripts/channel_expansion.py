@@ -9,6 +9,7 @@ from pprint import pprint
 
 import polars as pl
 from dotenv import load_dotenv
+from lingua import LanguageDetectorBuilder
 
 import collegram
 
@@ -17,6 +18,9 @@ logger = logging.getLogger(__name__)
 
 if __name__ == '__main__':
     load_dotenv()
+    lang_priorities = {lc: 0 for lc in ['EN', 'FR', 'ES', 'DE', 'EL', 'IT', 'PL', 'RO']}
+    lang_priorities['EN'] = 1
+    lang_detector = LanguageDetectorBuilder.from_all_languages().build()
     paths = collegram.paths.ProjectPaths()
     channels_dir = paths.raw_data / 'channels'
     logger.setLevel(logging.INFO)
@@ -45,17 +49,18 @@ if __name__ == '__main__':
     # api_channels = collegram.channels.search_from_api(client, "climate change")
     # channels = itertools.chain(tgdb_channels, api_channels)
     logger.info(f"{list(channels)}")
-    channels = set([channels[-1]])
+    channels_queue = collegram.utils.UniquePriorityQueue()
+    for c in channels:
+        channels_queue.put((0, c))
     processed_channels = set()
-    chans_saved_on_disk = set([int(p.stem) for p in channels_dir.iterdir()])
-    nr_remaining_channels = len(channels)
+    nr_remaining_channels = channels_queue.qsize()
     nr_processed_channels = 0
-    while nr_remaining_channels > 0:
+    while not channels_queue.empty():
         # The `channel_identifier` here can refer to a specific chat of a channel, in
         # which case it can only be an int, or to a whole channel, in which case it can
         # be a str or an int. So first we get the encompassing full channel, to then
         # read all of its chats.
-        channel_identifier = channels.pop()
+        prio, channel_identifier = channels_queue.get()
         if isinstance(channel_identifier, str) and channel_identifier.isdigit():
             channel_identifier = int(channel_identifier)
         listed_channel_full, listed_channel_data = collegram.channels.get_full(
@@ -71,7 +76,7 @@ if __name__ == '__main__':
             logger.error("NOT_HANDLED")
             continue
 
-        new_channels = set()
+        new_channels = {}
         for chat in listed_channel_full.chats:
             channel_id = chat.id
             anonymiser = collegram.utils.HMAC_anonymiser()
@@ -99,9 +104,8 @@ if __name__ == '__main__':
             if chat.username:
                 logger.info(f'**************** {chat.username} ****************')
             logger.info(f'---------------- {channel_id} ----------------')
-            logger.info(f"{channel_full.full_chat.participants_count} participants, {channel_full.full_chat.about}")
+            logger.info(f"priority {prio}, {channel_full.full_chat.participants_count} participants, {channel_full.full_chat.about}")
 
-            # TODO: filter based on language of `about`??
             anon_map_save_path = paths.raw_data / 'anon_maps' / f"{channel_id}.json"
             anonymiser.update_from_disk(anon_map_save_path)
 
@@ -133,7 +137,7 @@ if __name__ == '__main__':
             dt_bin_edges = pl.datetime_range(dt_from, global_dt_to, interval='1mo', eager=True, time_zone='UTC')
             fwd_chans_from_saved_msg = collegram.channels.recover_fwd_from_msgs(chat_dir_path)
 
-            forwarded_chans_ids = set()
+            forwarded_chans = {}
             for dt_from, dt_to in zip(dt_bin_edges[:-1], dt_bin_edges[1:]):
                 chunk_fwds = set()
                 messages_save_path = chat_dir_path / f"{dt_from.date()}_to_{dt_to.date()}.jsonl"
@@ -144,13 +148,16 @@ if __name__ == '__main__':
                         messages_save_path, all_media_dict, media_save_path
                     )
                     anonymiser.save_map(anon_map_save_path)
-                    new_fwds = chunk_fwds.difference(forwarded_chans_ids)
+                    new_fwds = chunk_fwds.difference(forwarded_chans.keys())
                     for i in new_fwds:
                         _, full_chat_d = collegram.channels.get_full(
                             client, channels_dir, channel_id=i, anon_func_to_save=anonymiser.anonymise
                         )
-                        chans_saved_on_disk.add(i)
-                    forwarded_chans_ids = forwarded_chans_ids.union(new_fwds)
+                        if full_chat_d:
+                            forwarded_chans[i] = collegram.channels.get_explo_priority(
+                                full_chat_d, lang_detector, lang_priorities,
+                                anonymiser.inverse_anon_map,
+                            )
 
             # Make message queries only when strictly necessary. If the channel was seen
             # in new messages, no need to get it through `chans_fwd_msg_to_query`.
@@ -160,44 +167,40 @@ if __name__ == '__main__':
                 fwd_id = inverse_anon_map.get(c)
                 if fwd_id is not None:
                     fwd_chans_from_saved_msg_ids[int(fwd_id)] = c
+                    # TODO: get_or_load_full and populate forwarded_chans
                 else:
                     logger.error(f"anon_map of {channel_id} is incomplete, {c} was not found.")
+
             chans_to_recover = (
                 set(fwd_chans_from_saved_msg_ids.keys())
-                 .difference(forwarded_chans_ids)
-                 .difference(chans_saved_on_disk)
+                 .difference(forwarded_chans.keys())
             )
             chans_fwd_msg_to_query = {}
             for og_id in chans_to_recover:
                 hashed_id = fwd_chans_from_saved_msg_ids[og_id]
                 chans_fwd_msg_to_query[og_id] = fwd_chans_from_saved_msg[hashed_id]
 
-            forwarded_chans_dict = collegram.channels.fwd_from_msg_ids(
-                client, chat, chans_fwd_msg_to_query, channels_dir, anonymiser.anonymise
+            unseen_fwd_chans_from_saved_msgs = collegram.channels.fwd_from_msg_ids(
+                client, channels_dir, chat, chans_fwd_msg_to_query, anonymiser,
+                lang_priorities=lang_priorities, lang_detector=lang_detector,
             )
 
             channel_save_data['forwards_from'] = [
-                anonymiser.anonymise(c, safe=True) for c in forwarded_chans_ids.union(fwd_chans_from_saved_msg_ids.keys())
+                anonymiser.anonymise(c, safe=True)
+                for c in set(forwarded_chans.keys()).union(fwd_chans_from_saved_msg_ids.keys())
             ]
             anonymiser.save_map(anon_map_save_path)
             channel_save_path.write_text(json.dumps(channel_save_data))
 
             # What new channels should we explore?
-            inverse_anon_map = anonymiser.inverse_anon_map
-            saved_fwd_from = set()
-            for c in channel_saved_data.get('forwards_from', []):
-                fwd_id = inverse_anon_map.get(c)
-                if fwd_id is not None:
-                    saved_fwd_from.add(int(fwd_id))
-                else:
-                    logger.error(f"anon_map of {channel_id} is incomplete, {c} was not found.")
-            new_channels = new_channels.union(forwarded_chans_ids).union(saved_fwd_from)
+            new_channels = {**new_channels, **forwarded_chans, **unseen_fwd_chans_from_saved_msgs}
             processed_channels.add(channel_id)
             nr_processed_channels += 1
             # TODO: Reevaluate if save users in separate file worth it?
             # users_save_path = paths.raw_data / 'users' / f"{channel_username}.json"
 
-        channels = channels.union(new_channels).difference(processed_channels)
-        nr_remaining_channels = len(channels)
+        for c in set(new_channels.keys()).difference(processed_channels):
+            channels_queue.put((new_channels[c], str(c)))
+        nr_remaining_channels = channels_queue.qsize()
         logger.info(f"{nr_processed_channels} channels already processed, {nr_remaining_channels} to go")
     # collegram.media.download_from_dict(client, all_media_dict, paths.raw_data / 'media', only_photos=True)

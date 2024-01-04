@@ -15,6 +15,7 @@ import collegram.json
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from lingua import LanguageDetector
     from telethon import TelegramClient
     from telethon.tl.types import ChannelFull, ChatFull, Message
 
@@ -117,17 +118,27 @@ def recover_fwd_from_msgs(messages_path: Path) -> dict[int, int]:
     return chans_fwd_msg
 
 def fwd_from_msg_ids(
-    client: TelegramClient, chat: Channel, chans_fwd_msg: dict[int, int],
-    channels_dir: Path | None = None, anon_func_to_save=None,
+    client: TelegramClient, channels_dir: Path, chat: Channel,
+    chans_fwd_msg: dict[int, int], anonymiser,
+    **priority_kwargs
 ):
     forwarded_channels = {}
     for chan_id, m_id in chans_fwd_msg.items():
         m = client.get_messages(entity=chat, ids=m_id)
-        fwd_full_chan = collegram.channels.get_full(
-            client, m.fwd_from.from_id, None, channels_dir, anon_func_to_save,
-        )
-        if fwd_full_chan is not None:
-            forwarded_channels[chan_id] = fwd_full_chan
+        fwd_from = getattr(m, "fwd_from", None)
+        if fwd_from is not None:
+            _, fwd_full_chan_d = get_full(
+                client, channels_dir, channel=m.fwd_from.from_id,
+                anon_func_to_save=anonymiser.anonymise,
+            )
+        else:
+            logger.error("message supposed to have been forwarded is not")
+            breakpoint()
+
+        if fwd_full_chan_d:
+            forwarded_channels[chan_id] = get_explo_priority(
+                fwd_full_chan_d, inverse_anon_map=anonymiser.inverse_anon_map, **priority_kwargs
+            )
     return forwarded_channels
 
 
@@ -169,3 +180,24 @@ def get_full_anon_dict(full_chat: ChatFull, anon_func, safe=True):
     full_channel['linked_chat_id'] = anon_func(full_channel['linked_chat_id'], safe=safe)
     full_channel['migrated_from_chat_id'] = anon_func(full_channel['migrated_from_chat_id'], safe=safe)
     return channel_save_data
+
+
+def get_explo_priority(full_channel_d: dict, lang_detector: LanguageDetector, lang_priorities: dict, inverse_anon_map: dict):
+    channel_d = [
+        c for c in full_channel_d['chats']
+        if c['id'] == full_channel_d['full_chat']['id']
+    ][0]
+    title = channel_d.get('title', '')
+    title = inverse_anon_map.get(title, title)
+    clean_text = f"{title}. {full_channel_d['full_chat'].get('about', '')}"
+    hash_at_pattern = r'(?:^|\B)((@|#)\w+)(?:$|\b)'
+    url_pattern = r'(?:^|\s)(\S+\/t.co\/\S+)(?:$|\b)'
+    regex_filter = re.compile('({})|({})'.format(hash_at_pattern, url_pattern))
+    clean_text = regex_filter.sub('', clean_text)
+    lang = lang_detector.detect_language_of(clean_text)
+    if lang is None:
+        return 100
+    else:
+        return lang_priorities.get(lang.iso_code_639_1.name, 100)
+
+

@@ -17,3 +17,4 @@ dependencies:
     - telethon
     # For faster media DL:
     - cryptg
+    - lingua-language-detector
