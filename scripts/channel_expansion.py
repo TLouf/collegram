@@ -159,22 +159,22 @@ if __name__ == '__main__':
             # Make message queries only when strictly necessary. If the channel was seen
             # in new messages, no need to get it through `chans_fwd_msg_to_query`.
             inverse_anon_map = anonymiser.inverse_anon_map
-            fwd_chans_from_saved_msg_ids = {}
+            id_map_fwd_chans = {}
             for c in fwd_chans_from_saved_msg.keys():
                 fwd_id = inverse_anon_map.get(c)
                 if fwd_id is not None:
-                    fwd_chans_from_saved_msg_ids[int(fwd_id)] = c
+                    id_map_fwd_chans[int(fwd_id)] = c
                     # TODO: get_or_load_full and populate forwarded_chans
                 else:
                     logger.error(f"anon_map of {channel_id} is incomplete, {c} was not found.")
 
             chans_to_recover = (
-                set(fwd_chans_from_saved_msg_ids.keys())
+                set(id_map_fwd_chans.keys())
                  .difference(forwarded_chans.keys())
             )
             chans_fwd_msg_to_query = {}
             for og_id in chans_to_recover:
-                hashed_id = fwd_chans_from_saved_msg_ids[og_id]
+                hashed_id = id_map_fwd_chans[og_id]
                 chans_fwd_msg_to_query[og_id] = fwd_chans_from_saved_msg[hashed_id]
 
             unseen_fwd_chans_from_saved_msgs = collegram.channels.fwd_from_msg_ids(
@@ -184,7 +184,7 @@ if __name__ == '__main__':
 
             channel_save_data['forwards_from'] = [
                 anonymiser.anonymise(c, safe=True)
-                for c in set(forwarded_chans.keys()).union(fwd_chans_from_saved_msg_ids.keys())
+                for c in set(forwarded_chans.keys()).union(id_map_fwd_chans.keys())
             ]
             anonymiser.save_map(anon_map_save_path)
             channel_save_path.write_text(json.dumps(channel_save_data))
