@@ -43,7 +43,6 @@ if __name__ == '__main__':
         session=str(paths.proj / 'anon.session')
     )
     all_media_dict = {'photos': {}, 'documents': {}}
-    # channels = (paths.ext_data / "channels.txt").read_text().strip().split(",")
     channels = (paths.interim_data / "channels.txt").read_text().strip().split("\n")
     # tgdb_channels = collegram.channels.search_from_tgdb(client, "climate change")
     # api_channels = collegram.channels.search_from_api(client, "climate change")
@@ -80,7 +79,6 @@ if __name__ == '__main__':
         for chat in listed_channel_full.chats:
             channel_id = chat.id
             anonymiser = collegram.utils.HMAC_anonymiser()
-            channel_saved_data = {}
 
             if channel_id == listed_channel_full.full_chat.id:
                 channel_full = listed_channel_full
@@ -125,7 +123,6 @@ if __name__ == '__main__':
             channel_save_data['forwards_from'] = channel_saved_data.get('forwards_from', [])
             anonymiser.save_map(anon_map_save_path)
             channel_save_path.write_text(json.dumps(channel_save_data))
-            chans_saved_on_disk.add(channel_id)
 
             # Save messages, don't get to avoid overflowing memory.
             chat_dir_path = paths.raw_data / 'messages' / f"{chat.id}"
