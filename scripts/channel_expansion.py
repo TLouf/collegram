@@ -122,6 +122,7 @@ if __name__ == '__main__':
             channel_save_data['participants'] =  [json.loads(u.to_json()) for u in users_list]
             channel_save_data['forwards_from'] = channel_saved_data.get('forwards_from', [])
             anonymiser.save_map(anon_map_save_path)
+            channel_save_data['last_queried_at'] = datetime.datetime.now()
             channel_save_path.write_text(json.dumps(channel_save_data))
 
             # Save messages, don't get to avoid overflowing memory.
