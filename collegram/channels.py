@@ -131,9 +131,11 @@ def fwd_from_msg_ids(
                 client, channels_dir, channel=m.fwd_from.from_id,
                 anon_func_to_save=anonymiser.anonymise,
             )
-        else:
+        elif m is not None:
             logger.error("message supposed to have been forwarded is not")
             breakpoint()
+        else:
+            logger.error("forwarded message was deleted")
 
         if fwd_full_chan_d:
             forwarded_channels[chan_id] = get_explo_priority(
