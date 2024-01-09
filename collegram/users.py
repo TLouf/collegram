@@ -41,6 +41,9 @@ def get_channel_participants(client: TelegramClient, channel_username):
 
 
 def get_channel_users(client: TelegramClient, channel: str | Channel, anon_func) -> list[User]:
+    """
+    We're missing the bio here, can be obtained with GetFullUserRequest
+    """
     try:
         participants = client.iter_participants(channel)
     except ChatAdminRequiredError:
