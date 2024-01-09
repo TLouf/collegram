@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import datetime
 import hmac
 import json
 import os
+from collections import defaultdict
 from queue import PriorityQueue
 from typing import Any
+
+import polars as pl
 
 
 class UniquePriorityQueue(PriorityQueue):
@@ -66,3 +70,17 @@ class HMAC_anonymiser:
     @property
     def inverse_anon_map(self) -> dict[str, str]:
         return {value: key for key, value in self.anon_map.items()}
+
+
+PY_PL_DTYPES_MAP = defaultdict(
+    lambda: pl.Null,
+    {
+        bool: pl.Boolean,
+        int: pl.Int64,
+        float: pl.Float64,
+        str: pl.Utf8,
+        list: pl.List,
+        dict: pl.Struct,
+        datetime.datetime: pl.Datetime,
+    },
+)
