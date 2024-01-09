@@ -1,23 +1,26 @@
 from __future__ import annotations
 
+import datetime
 import json
 import logging
 import re
-from typing import TYPE_CHECKING, overload
+import typing
 
+import polars as pl
 from telethon.errors import ChannelPrivateError
 from telethon.tl.functions.channels import GetFullChannelRequest
 from telethon.tl.functions.contacts import SearchRequest
-from telethon.tl.types import Channel, InputPeerChannel, PeerChannel
+from telethon.tl.types import Channel, ChannelFull, InputPeerChannel, PeerChannel
 
 import collegram.json
+from collegram.utils import PY_PL_DTYPES_MAP
 
-if TYPE_CHECKING:
+if typing.TYPE_CHECKING:
     from pathlib import Path
 
     from lingua import LanguageDetector
     from telethon import TelegramClient
-    from telethon.tl.types import ChannelFull, ChatFull, Message
+    from telethon.tl.types import ChatFull
 
 logger = logging.getLogger(__name__)
 
@@ -34,13 +37,13 @@ def search_from_tgdb(client: TelegramClient, query):
 def search_from_api(client: TelegramClient, query, limit=100):
     return [c.username for c in client(SearchRequest(q=query, limit=limit)).chats]
 
-@overload
+@typing.overload
 def get_input_peer(channel_id: str, access_hash: int | None) -> str:
     ...
-@overload
+@typing.overload
 def get_input_peer(channel_id: int, access_hash: int) -> InputPeerChannel:
     ...
-@overload
+@typing.overload
 def get_input_peer(channel_id: int, access_hash: None) -> PeerChannel:
     ...
 def get_input_peer(channel_id: str | int, access_hash: int | None = None):
@@ -203,3 +206,74 @@ def get_explo_priority(full_channel_d: dict, lang_detector: LanguageDetector, la
         return lang_priorities.get(lang.iso_code_639_1.name, 100)
 
 
+DISCARDED_CHAN_FULL_FIELDS = (
+    '_', 'notify_settings', 'call', 'groupcall_default_join_as', 'stories',
+    'exported_invite', 'default_send_as',  'available_reactions', 'bot_info',
+    'stickerset', 'chat_photo', 'sticker_set_id', 'location', 'recent_requesters',
+    'pending_suggestions',
+)
+DISCARDED_CHAN_FIELDS = (
+    'default_banned_rights', 'banned_rights', 'admin_rights', 'color',
+    'restriction_reason', 'photo',
+)
+CHANGED_CHAN_FIELDS = {
+    'id': pl.Utf8,
+    'linked_chat_id': pl.Utf8,
+    'migrated_from_chat_id': pl.Utf8,
+    'forwards_from': pl.List(pl.Utf8),
+    'linked_chats_ids': pl.List(pl.Utf8),
+    'bot_ids': pl.List(pl.Int64),
+    'sticker_set_id': pl.Int64,
+    'location_point': pl.List(pl.Float64),
+    'location_str': pl.Utf8,
+    'usernames': pl.List(pl.Utf8),
+    'migrated_to': pl.Utf8,
+}
+
+def flatten_dict(c: dict) -> tuple[dict, list | None]:
+    flat_c = {**[chat for chat in c['chats'] if chat['id'] == c['full_chat']['id']][0], **c['full_chat']}
+    flat_c['date'] = datetime.datetime.fromisoformat(flat_c['date'])
+    flat_c['forwards_from'] = c.get('forwards_from')
+    flat_c['linked_chats_ids'] = [chat['id'] for chat in c['chats'] if chat['id'] != c['full_chat']['id']]
+    # From chanfull:
+    flat_c['bot_ids'] = flat_c.pop('bot_info')
+    for i in range(len(flat_c['bot_ids'])):
+        flat_c['bot_ids'][i] = flat_c['bot_ids'][i].get('user_id')
+
+    flat_c['sticker_set_id'] = flat_c.pop('stickerset', None)
+    if flat_c['sticker_set_id'] is not None:
+        flat_c['sticker_set_id'] = flat_c['sticker_set_id']['id']
+
+    location = flat_c.pop('location', None)
+    flat_c['location_point'] = None
+    flat_c['location_str'] = None
+    if not (location is None or location['_'] == "ChannelLocationEmpty"):
+        point = location['geo_point']
+        if 'long' in point and 'lat' in point:
+            flat_c['location_point'] = [point['long'], point['lat']]
+        flat_c['location_str'] = location['address']
+
+    flat_c['usernames'] = flat_c.pop('usernames')
+    for i, uname in enumerate(flat_c['usernames']):
+        flat_c['usernames'][i] = uname['username']
+
+    migrated_to = flat_c.get('migrated_to')
+    if migrated_to is not None:
+        flat_c['migrated_to'] = migrated_to['channel_id']
+
+    for f in DISCARDED_CHAN_FIELDS + DISCARDED_CHAN_FULL_FIELDS:
+        flat_c.pop(f, None)
+    return flat_c
+
+
+def get_pl_schema():
+    chan_schema = {}
+    annots = {**Channel.__init__.__annotations__, **ChannelFull.__init__.__annotations__}
+    discarded_args = DISCARDED_CHAN_FIELDS + DISCARDED_CHAN_FULL_FIELDS
+    for arg in set(annots.keys()).difference(discarded_args):
+        dtype = annots[arg]
+        inner_dtype = typing.get_args(dtype)
+        inner_dtype = inner_dtype[0] if len(inner_dtype) > 0 else dtype
+        chan_schema[arg] = PY_PL_DTYPES_MAP.get(inner_dtype)
+    chan_schema.update(CHANGED_CHAN_FIELDS)
+    return chan_schema
