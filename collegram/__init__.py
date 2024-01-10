@@ -1,6 +1,6 @@
 import logging
 
-from . import channels, client, json, media, messages, paths, users, utils
+from . import channels, client, json, media, messages, paths, text, users, utils
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
@@ -13,4 +13,5 @@ __all__ = [
     "paths",
     "utils",
     "json",
+    "text",
 ]
