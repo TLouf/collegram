@@ -182,7 +182,7 @@ if __name__ == '__main__':
 
             unseen_fwd_chans_from_saved_msgs = collegram.channels.fwd_from_msg_ids(
                 client, channels_dir, chat, chans_fwd_msg_to_query, anonymiser,
-                lang_priorities=lang_priorities, lang_detector=lang_detector,
+                prio, lang_detector, lang_priorities,
             )
 
             channel_save_data['forwards_from'] = [
