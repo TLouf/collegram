@@ -8,10 +8,17 @@ import time
 import typing
 
 import polars as pl
-from telethon.errors import ChannelPrivateError
+from telethon.errors import ChannelPrivateError, UsernameInvalidError
 from telethon.tl.functions.channels import GetFullChannelRequest
 from telethon.tl.functions.contacts import SearchRequest
-from telethon.tl.types import Channel, ChannelFull, InputPeerChannel, PeerChannel
+from telethon.tl.types import (
+    Channel,
+    ChannelFull,
+    InputPeerChannel,
+    InputPeerUser,
+    PeerChannel,
+    TypeInputPeer,
+)
 
 import collegram.json
 import collegram.text
@@ -48,17 +55,20 @@ def search_from_api(client: TelegramClient, query, limit=100):
     return [c.username for c in client(SearchRequest(q=query, limit=limit)).chats]
 
 @typing.overload
-def get_input_peer(channel_id: str, access_hash: int | None) -> str:
+def get_input_peer(client: TelegramClient, channel_id: str, access_hash: int | None) -> TypeInputPeer:
     ...
 @typing.overload
-def get_input_peer(channel_id: int, access_hash: int) -> InputPeerChannel:
+def get_input_peer(client: TelegramClient, channel_id: int, access_hash: int) -> InputPeerChannel:
     ...
 @typing.overload
-def get_input_peer(channel_id: int, access_hash: None) -> PeerChannel:
+def get_input_peer(client: TelegramClient, channel_id: int, access_hash: None) -> PeerChannel:
     ...
-def get_input_peer(channel_id: str | int, access_hash: int | None = None):
+def get_input_peer(client: TelegramClient, channel_id: str | int, access_hash: int | None = None):
     if isinstance(channel_id, str):
-        return channel_id
+        try:
+            return client.get_input_entity(channel_id)
+        except UsernameInvalidError:
+            logger.error(f'No peer has "{channel_id}" as username')
     elif access_hash is None:
         return PeerChannel(channel_id)
     else:
@@ -67,13 +77,14 @@ def get_input_peer(channel_id: str | int, access_hash: int | None = None):
 def get(
     client: TelegramClient, channel: int | str, access_hash: int | None = None,
 ) -> Channel | None:
-    input_chan = get_input_peer(channel, access_hash)
-    try:
-        return client.get_entity(input_chan)
-    except ChannelPrivateError:
-        channel_id = channel.id if isinstance(channel, Channel) else channel
-        logger.info(f"found private channel {channel_id}")
-        return
+    input_chan = get_input_peer(client, channel, access_hash)
+    if input_chan:
+        try:
+            return client.get_entity(input_chan)
+        except ChannelPrivateError:
+            channel_id = channel.id if isinstance(channel, Channel) else channel
+            logger.info(f"found private channel {channel_id}")
+            return
 
 
 def get_full(
@@ -96,19 +107,25 @@ def get_full(
         ][0]
         access_hash = chat['access_hash']
     if force_query or not full_chat_d:
-    # if force_query and (access_hash is not None or channel is not None):
         input_chan = (
             channel if isinstance(channel, (Channel, PeerChannel))
-            else get_input_peer(channel_id, access_hash)
+            else get_input_peer(client, channel_id, access_hash)
         )
-        try:
-            full_chat = client(GetFullChannelRequest(channel=input_chan))
-            if anon_func_to_save is not None and channels_dir is not None:
-                full_chat_d = get_full_anon_dict(full_chat, anon_func_to_save)
-                p = channels_dir / f"{full_chat.full_chat.id}.json"
-                p.write_text(json.dumps(full_chat_d))
-        except (ChannelPrivateError, ValueError):
-            logger.info(f"found private channel {channel_id}")
+        str_id_is_user = isinstance(input_chan, InputPeerUser)
+        if input_chan and str_id_is_user:
+            logger.error(f"Passed identifier {channel_id} refers to a user.")
+        elif input_chan:
+            try:
+                full_chat = client(GetFullChannelRequest(channel=input_chan))
+                if anon_func_to_save is not None and channels_dir is not None:
+                    full_chat_d = get_full_anon_dict(full_chat, anon_func_to_save)
+                    p = channels_dir / f"{full_chat.full_chat.id}.json"
+                    p.write_text(json.dumps(full_chat_d))
+            except ChannelPrivateError:
+                logger.info(f"found private channel {channel_id}")
+            except ValueError:
+                logger.error('unexpected valuerror')
+                breakpoint()
     return full_chat, full_chat_d
 
 
