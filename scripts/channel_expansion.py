@@ -2,6 +2,7 @@ import datetime
 import itertools
 import json
 import logging
+import logging.config
 import os
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -13,31 +14,22 @@ from lingua import LanguageDetectorBuilder
 
 import collegram
 
-logger = logging.getLogger(__name__)
-
-
 if __name__ == '__main__':
     load_dotenv()
+    paths = collegram.paths.ProjectPaths()
+    script_path = paths.proj / 'scripts' / __file__
+    logging_conf = json.loads((script_path.parent / 'logging.json').read_text())
+    logging_conf['handlers']['file_handler']['filename'] = str(script_path.with_suffix('.log'))
+    logging.config.dictConfig(logging_conf)
+    logger = logging.getLogger()
+
     # should always be strictly positive integers, since we want to avoid rabbit holes
     # very far away from initial seed and therefore increment based on parent priority
     # for their children.
     lang_priorities = {lc: 1 for lc in ['EN', 'FR', 'ES', 'DE', 'EL', 'IT', 'PL', 'RO']}
     lang_priorities['EN'] = 100
     lang_detector = LanguageDetectorBuilder.from_all_languages().build()
-    paths = collegram.paths.ProjectPaths()
     channels_dir = paths.raw_data / 'channels'
-    logger.setLevel(logging.INFO)
-    log_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    script_path = paths.proj / 'scripts' / __file__
-    file_handler = RotatingFileHandler(
-        script_path.with_suffix('.log'), backupCount=1, maxBytes=256 * 1024, encoding="utf-8"
-    )
-    file_handler.setFormatter(log_formatter)
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(log_formatter)
-    logger.addHandler(stream_handler)
-    logger.addHandler(file_handler)
-
     # Go up to 30 days ago so that view counts, etc, have more or less reached their final value
     global_dt_to = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=30)
     # dt_from = dt_to - datetime.timedelta(days=31)

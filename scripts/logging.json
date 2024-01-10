@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "formatters": {
+      "fmt": {"format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"}
+  },
+  "handlers": {
+      "stream_handler": {
+          "class": "logging.StreamHandler",
+          "formatter": "fmt"
+      },
+      "file_handler": {
+          "class": "logging.handlers.RotatingFileHandler",
+          "formatter": "fmt",
+          "filename": "script.log",
+          "backupCount": 1,
+          "maxBytes": 262144
+      }
+  },
+  "root": {"handlers": ["stream_handler", "file_handler"], "level": 20},
+  "disable_existing_loggers": false
+}
