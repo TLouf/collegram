@@ -8,7 +8,7 @@ import time
 import typing
 
 import polars as pl
-from telethon.errors import ChannelPrivateError, TimedOutError
+from telethon.errors import ChannelPrivateError
 from telethon.tl.functions.channels import GetFullChannelRequest
 from telethon.tl.functions.contacts import SearchRequest
 from telethon.tl.types import Channel, ChannelFull, InputPeerChannel, PeerChannel
@@ -39,7 +39,7 @@ def search_from_tgdb(client: TelegramClient, query):
             results = re.findall(r'@([a-zA-Z0-9_]+)', search_res.message)
             break
         elif "exhausted your daily free searches" in search_res.message:
-            raise TimedOutError(message=search_res.message).
+            raise RuntimeError(search_res.message)
         else:
             time.sleep(10)
     return results
