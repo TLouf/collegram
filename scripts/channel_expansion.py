@@ -63,7 +63,7 @@ if __name__ == '__main__':
             continue
 
         if listed_channel_full is None:
-            raise ValueError('wtf')
+            breakpoint()
             logger.error("NOT_HANDLED")
             continue
 
