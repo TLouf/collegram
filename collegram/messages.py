@@ -133,13 +133,14 @@ def save_channel_messages(
     dt_from: datetime.datetime, dt_to: datetime.datetime,
     forwards_set: set, anon_func, messages_save_path,
     media_dict: MediaDictType, media_save_path: Path,
+    offset_id=0,
 ):
     '''
     dt_to exclusive
     '''
     # Telethon docs are misleading, `offset_date` is in fact a datetime.
     with open(messages_save_path, "a") as f:
-        for message in client.iter_messages(entity=channel, offset_date=dt_to):
+        for message in client.iter_messages(entity=channel, offset_date=dt_to, offset_id=offset_id):
             message_id = message.id
             # Take messages in until we've gone further than `date_until` in the past
             # (works because HistoryRequest gets messages in reverse chronological order
