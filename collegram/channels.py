@@ -4,10 +4,11 @@ import datetime
 import json
 import logging
 import re
+import time
 import typing
 
 import polars as pl
-from telethon.errors import ChannelPrivateError
+from telethon.errors import ChannelPrivateError, TimedOutError
 from telethon.tl.functions.channels import GetFullChannelRequest
 from telethon.tl.functions.contacts import SearchRequest
 from telethon.tl.types import Channel, ChannelFull, InputPeerChannel, PeerChannel
@@ -26,13 +27,21 @@ logger = logging.getLogger(__name__)
 
 
 async def query_bot(client: TelegramClient, bot, cmd):
-    async with client.conversation(bot) as conv:
+    async with client.conversation(bot, timeout=120) as conv:
         await conv.send_message(cmd)
         return await conv.get_response()
 
 def search_from_tgdb(client: TelegramClient, query):
-    search_res = client.loop.run_until_complete(query_bot(client, 'tgdb_bot', f"/search {query}"))
-    return re.findall(r'@([a-zA-Z0-9_]+)', search_res.message)
+    while True:
+        search_res = client.loop.run_until_complete(query_bot(client, 'tgdb_bot', f"/search {query}"))
+        if 'result' in search_res.message:
+            results = re.findall(r'@([a-zA-Z0-9_]+)', search_res.message)
+            break
+        elif "exhausted your daily free searches" in search_res.message:
+            raise TimedOutError(message=search_res.message).
+        else:
+            time.sleep(10)
+    return results
 
 def search_from_api(client: TelegramClient, query, limit=100):
     return [c.username for c in client(SearchRequest(q=query, limit=limit)).chats]
