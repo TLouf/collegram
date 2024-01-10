@@ -14,6 +14,7 @@ from telethon.tl.functions.contacts import SearchRequest
 from telethon.tl.types import Channel, ChannelFull, InputPeerChannel, PeerChannel
 
 import collegram.json
+import collegram.text
 from collegram.utils import PY_PL_DTYPES_MAP
 
 if typing.TYPE_CHECKING:
@@ -150,8 +151,9 @@ def fwd_from_msg_ids(
             logger.error("forwarded message was deleted")
 
         if fwd_full_chan_d:
+            lang = collegram.text.detect_chan_lang(fwd_full_chan_d, anonymiser.inverse_anon_map, lang_detector)
             forwarded_channels[chan_id] = get_explo_priority(
-                fwd_full_chan_d, inverse_anon_map=anonymiser.inverse_anon_map, **priority_kwargs
+                parent_priority, lang, lang_priorities,
             )
     return forwarded_channels
 
@@ -196,23 +198,15 @@ def get_full_anon_dict(full_chat: ChatFull, anon_func, safe=True):
     return channel_save_data
 
 
-def get_explo_priority(full_channel_d: dict, lang_detector: LanguageDetector, lang_priorities: dict, inverse_anon_map: dict):
-    channel_d = [
-        c for c in full_channel_d['chats']
-        if c['id'] == full_channel_d['full_chat']['id']
-    ][0]
-    title = channel_d.get('title', '')
-    title = inverse_anon_map.get(title, title)
-    clean_text = f"{title}. {full_channel_d['full_chat'].get('about', '')}"
-    hash_at_pattern = r'(?:^|\B)((@|#)\w+)(?:$|\b)'
-    url_pattern = r'(?:^|\s)(\S+\/t.co\/\S+)(?:$|\b)'
-    regex_filter = re.compile('({})|({})'.format(hash_at_pattern, url_pattern))
-    clean_text = regex_filter.sub('', clean_text)
-    lang = lang_detector.detect_language_of(clean_text)
-    if lang is None:
-        return 100
-    else:
-        return lang_priorities.get(lang.iso_code_639_1.name, 100)
+def get_explo_priority(parent_prio: int, chan_lang: str | None, lang_priorities: dict):
+    # Some channels may be from a relevant language, but detection was just not
+    # conclusive, so default shouldn't be too high.
+    lang_prio = lang_priorities.get(chan_lang, 100)
+    # lang_prio is both increment and multiplicative factor, thus if some language has
+    # prio value N times superior, after exploring N of other language, it'l' be this
+    # language's turn.
+    prio = lang_prio * parent_prio + lang_prio
+    return prio
 
 
 DISCARDED_CHAN_FULL_FIELDS = (

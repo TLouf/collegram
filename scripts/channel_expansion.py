@@ -18,8 +18,11 @@ logger = logging.getLogger(__name__)
 
 if __name__ == '__main__':
     load_dotenv()
-    lang_priorities = {lc: 0 for lc in ['EN', 'FR', 'ES', 'DE', 'EL', 'IT', 'PL', 'RO']}
-    lang_priorities['EN'] = 1
+    # should always be strictly positive integers, since we want to avoid rabbit holes
+    # very far away from initial seed and therefore increment based on parent priority
+    # for their children.
+    lang_priorities = {lc: 1 for lc in ['EN', 'FR', 'ES', 'DE', 'EL', 'IT', 'PL', 'RO']}
+    lang_priorities['EN'] = 100
     lang_detector = LanguageDetectorBuilder.from_all_languages().build()
     paths = collegram.paths.ProjectPaths()
     channels_dir = paths.raw_data / 'channels'
@@ -152,9 +155,11 @@ if __name__ == '__main__':
                             client, channels_dir, channel_id=i, anon_func_to_save=anonymiser.anonymise
                         )
                         if full_chat_d:
+                            lang = collegram.text.detect_chan_lang(
+                                full_chat_d, anonymiser.inverse_anon_map, lang_detector,
+                            )
                             forwarded_chans[i] = collegram.channels.get_explo_priority(
-                                full_chat_d, lang_detector, lang_priorities,
-                                anonymiser.inverse_anon_map,
+                                prio, lang, lang_priorities,
                             )
 
             # Make message queries only when strictly necessary. If the channel was seen
