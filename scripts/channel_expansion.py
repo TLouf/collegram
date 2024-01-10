@@ -47,9 +47,6 @@ if __name__ == '__main__':
     )
     all_media_dict = {'photos': {}, 'documents': {}}
     channels = (paths.interim_data / "channels.txt").read_text().strip().split("\n")
-    # tgdb_channels = collegram.channels.search_from_tgdb(client, "climate change")
-    # api_channels = collegram.channels.search_from_api(client, "climate change")
-    # channels = itertools.chain(tgdb_channels, api_channels)
     logger.info(f"{list(channels)}")
     channels_queue = collegram.utils.UniquePriorityQueue()
     for c in channels:
