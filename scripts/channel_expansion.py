@@ -119,6 +119,7 @@ if __name__ == '__main__':
 
             # Save messages, don't get to avoid overflowing memory.
             chat_dir_path = paths.raw_data / 'messages' / f"{chat.id}"
+            chat_dir_path.mkdir(exist_ok=True, parents=True)
             media_save_path = paths.raw_data / 'media'
 
             logger.info(f"saving messages to {chat_dir_path}")
@@ -128,14 +129,22 @@ if __name__ == '__main__':
             fwd_chans_from_saved_msg = collegram.channels.recover_fwd_from_msgs(chat_dir_path)
 
             forwarded_chans = {}
+            existing_files = list(chat_dir_path.iterdir())
             for dt_from, dt_to in zip(dt_bin_edges[:-1], dt_bin_edges[1:]):
                 chunk_fwds = set()
                 messages_save_path = chat_dir_path / f"{dt_from.date()}_to_{dt_to.date()}.jsonl"
-                messages_save_path.parent.mkdir(exist_ok=True, parents=True)
-                if not messages_save_path.exists():
+                is_last_saved_period = len(existing_files) > 0 and messages_save_path == existing_files[0]
+                if not messages_save_path.exists() or is_last_saved_period:
+                    offset_id = 0
+                    if is_last_saved_period:
+                        # Get the offset in case collection was unexpectedly interrupted
+                        # while writing for this time range.
+                        last_message_saved = collegram.utils.read_nth_to_last_line(messages_save_path)
+                        offset_id = collegram.json.read_message(last_message_saved).id
+
                     collegram.messages.save_channel_messages(
                         client, chat, dt_from, dt_to, chunk_fwds, anonymiser.anonymise,
-                        messages_save_path, all_media_dict, media_save_path
+                        messages_save_path, all_media_dict, media_save_path, offset_id=offset_id
                     )
                     anonymiser.save_map(anon_map_save_path)
                     new_fwds = chunk_fwds.difference(forwarded_chans.keys())
@@ -195,4 +204,5 @@ if __name__ == '__main__':
             channels_queue.put((new_channels[c], str(c)))
         nr_remaining_channels = channels_queue.qsize()
         logger.info(f"{nr_processed_channels} channels already processed, {nr_remaining_channels} to go")
+
     # collegram.media.download_from_dict(client, all_media_dict, paths.raw_data / 'media', only_photos=True)
