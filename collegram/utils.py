@@ -71,6 +71,26 @@ class HMAC_anonymiser:
     def inverse_anon_map(self) -> dict[str, str]:
         return {value: key for key, value in self.anon_map.items()}
 
+def read_nth_to_last_line(path, n=1):
+    """Returns the nth before last line of a file (n=1 gives last line)
+
+    https://stackoverflow.com/questions/46258499/how-to-read-the-last-line-of-a-file-in-python
+    """
+    num_newlines = 0
+    with open(path, 'rb') as f:
+        try:
+            f.seek(-2, os.SEEK_END)
+            while num_newlines < n:
+                f.seek(-2, os.SEEK_CUR)
+                if f.read(1) == b'\n':
+                    num_newlines += 1
+        except OSError:
+            # catch OSError in case of a one line file
+            f.seek(0)
+        last_line = f.readline().decode()
+    return last_line
+
+
 
 PY_PL_DTYPES_MAP = defaultdict(
     lambda: pl.Null,
