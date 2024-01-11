@@ -67,7 +67,7 @@ def get_input_peer(client: TelegramClient, channel_id: str | int, access_hash: i
     if isinstance(channel_id, str):
         try:
             return client.get_input_entity(channel_id)
-        except UsernameInvalidError:
+        except (UsernameInvalidError, ValueError):
             logger.error(f'No peer has "{channel_id}" as username')
     elif access_hash is None:
         return PeerChannel(channel_id)
@@ -106,6 +106,7 @@ def get_full(
             if c['id'] == full_chat_d['full_chat']['id']
         ][0]
         access_hash = chat['access_hash']
+
     if force_query or not full_chat_d:
         input_chan = (
             channel if isinstance(channel, (Channel, PeerChannel))
