@@ -91,7 +91,7 @@ def get_full(
     client: TelegramClient, channels_dir: Path,
     channel: Channel | PeerChannel | None = None, channel_id: int | str | None = None,
     access_hash: int | None = None, anon_func_to_save=None, force_query=False
-) -> tuple[ChannelFull | None, dict]:
+) -> tuple[ChatFull | None, dict]:
     full_chat = None
     if channel_id is None and channel is None:
         raise ValueError("Either `channel` or `channel_id` must be set.")
