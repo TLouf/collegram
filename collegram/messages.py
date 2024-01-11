@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime
 import inspect
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable
 
 from telethon.errors import MsgIdInvalidError
 from telethon.helpers import add_surrogate
@@ -78,7 +78,8 @@ def get_channel_messages(
                 chunk_messages.append(
                     preprocess(message, forwards_set, anon_func, media_dict, media_save_path)
                 )
-                if getattr(message, "replies", None) is not None and message.replies.comments:
+                replies = getattr(message, "replies", None)
+                if replies is not None and replies.replies > 0 and replies.comments:
                     chunk_messages.extend(
                         get_comments(
                             client, channel, message_id, forwards_set, anon_func, media_dict, media_save_path
@@ -100,20 +101,9 @@ def get_channel_messages(
 
 def get_comments_iter(
     client: TelegramClient, channel: str | Channel, message_id: int,
-)-> list[Message]:
+)-> Iterable[Message]:
     try:
-        result = client(GetRepliesRequest(
-            peer=channel,
-            msg_id=message_id,
-            offset_id=0,
-            offset_date=datetime.datetime.now(),
-            add_offset=0,
-            limit=-1,
-            max_id=0,
-            min_id=0,
-            hash=0
-        ))
-        return result.messages
+        return client.iter_messages(channel, reply_to=message_id)
     except MsgIdInvalidError:
         logger.warning(f"no replies found for message ID {message_id}")
         return []
