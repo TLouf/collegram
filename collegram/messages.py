@@ -105,7 +105,8 @@ def get_comments_iter(
     try:
         return client.iter_messages(channel, reply_to=message_id)
     except MsgIdInvalidError:
-        logger.warning(f"no replies found for message ID {message_id}")
+        logger.error(f"no replies found for message ID {message_id}")
+        breakpoint()
         return []
 
 def get_comments(
@@ -139,7 +140,8 @@ def save_channel_messages(
                 preprocessed_m = preprocess(message, forwards_set, anon_func, media_dict, media_save_path)
                 f.write(preprocessed_m.to_json())
                 f.write('\n')
-                if getattr(message, "replies", None) is not None and message.replies.comments:
+                replies = getattr(message, "replies", None)
+                if replies is not None and replies.replies > 0 and replies.comments:
                     for m in get_comments_iter(client, channel, message_id):
                         preprocessed_m = preprocess(m, forwards_set, anon_func, media_dict, media_save_path)
                         preprocessed_m.comments_msg_id = message_id
