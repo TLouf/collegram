@@ -54,8 +54,9 @@ if __name__ == '__main__':
         prio, channel_identifier = channels_queue.get()
         if isinstance(channel_identifier, str) and channel_identifier.isdigit():
             channel_identifier = int(channel_identifier)
+        anonymiser = collegram.utils.HMAC_anonymiser()
         listed_channel_full, listed_channel_data = collegram.channels.get_full(
-            client, channels_dir, channel_id=channel_identifier, force_query=True,
+            client, channels_dir, anonymiser.anonymise, channel_id=channel_identifier, force_query=True,
         )
         if listed_channel_data == {} and listed_channel_full is None:
             logger.warning(f"could not get data for listed channel {channel_identifier}")
@@ -77,8 +78,8 @@ if __name__ == '__main__':
                 channel_saved_data = listed_channel_data
             else:
                 channel_full, channel_saved_data = collegram.channels.get_full(
-                    client, channels_dir, channel_id=channel_id,
-                    anon_func_to_save=anonymiser.anonymise, force_query=True,
+                    client, channels_dir, anonymiser.anonymise, channel_id=channel_id,
+                    force_query=True,
                 )
                 if channel_saved_data == {} and channel_full is None:
                     logger.warning(f"could not get data for channel {channel_id}")
@@ -152,7 +153,7 @@ if __name__ == '__main__':
                     new_fwds = chunk_fwds.difference(forwarded_chans.keys())
                     for i in new_fwds:
                         _, full_chat_d = collegram.channels.get_full(
-                            client, channels_dir, channel_id=i, anon_func_to_save=anonymiser.anonymise
+                            client, channels_dir, anonymiser.anonymise, channel_id=i,
                         )
                         # Only public channels are added to `forwarded_chans`.
                         if full_chat_d:

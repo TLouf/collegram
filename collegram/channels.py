@@ -91,9 +91,9 @@ def get(
 
 
 def get_full(
-    client: TelegramClient, channels_dir: Path,
+    client: TelegramClient, channels_dir: Path, anon_func,
     channel: Channel | PeerChannel | None = None, channel_id: int | str | None = None,
-    access_hash: int | None = None, anon_func_to_save=None, force_query=False
+    access_hash: int | None = None, force_query=False
 ) -> tuple[ChatFull | None, dict]:
     full_chat = None
     if channel_id is None and channel is None:
@@ -101,6 +101,9 @@ def get_full(
     elif channel_id is None:
         channel_id = channel.id if isinstance(channel, Channel) else channel.channel_id
 
+    # Won't find file if `channel_id` is a username, but it's ok for our usage since we
+    # always force a query for the channels in the initial seed, which are the only ones
+    # we refer to with their usernames at first. Anyway, it just implies a request more.
     save_path = channels_dir / f"{channel_id}.json"
     full_chat_d = json.loads(save_path.read_text()) if save_path.exists() else {}
     if full_chat_d:
@@ -118,10 +121,9 @@ def get_full(
         elif input_chan:
             try:
                 full_chat = client(GetFullChannelRequest(channel=input_chan))
-                if anon_func_to_save is not None:
-                    full_chat_d = get_full_anon_dict(full_chat, anon_func_to_save)
-                    p = channels_dir / f"{full_chat.full_chat.id}.json"
-                    p.write_text(json.dumps(full_chat_d))
+                full_chat_d = get_full_anon_dict(full_chat, anon_func)
+                p = channels_dir / f"{full_chat.full_chat.id}.json"
+                p.write_text(json.dumps(full_chat_d))
             except ChannelPrivateError:
                 logger.info(f"found private channel {channel_id}")
             except ValueError:
@@ -181,8 +183,7 @@ def fwd_from_msg_ids(
         fwd_from = getattr(m, "fwd_from", None)
         if fwd_from is not None:
             _, fwd_full_chan_d = get_full(
-                client, channels_dir, channel=m.fwd_from.from_id,
-                anon_func_to_save=anonymiser.anonymise,
+                client, channels_dir, anonymiser.anonymise, channel=m.fwd_from.from_id,
             )
         elif m is not None:
             logger.error("message supposed to have been forwarded is not")
