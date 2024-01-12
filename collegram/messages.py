@@ -78,13 +78,10 @@ def get_channel_messages(
                 chunk_messages.append(
                     preprocess(message, forwards_set, anon_func, media_dict, media_save_path)
                 )
-                replies = getattr(message, "replies", None)
-                if replies is not None and replies.replies > 0 and replies.comments:
-                    chunk_messages.extend(
-                        get_comments(
-                            client, channel, message_id, forwards_set, anon_func, media_dict, media_save_path
-                        )
-                    )
+                for comm in yield_comments(client, channel, message):
+                    preprocessed_comm = preprocess(comm, forwards_set, anon_func, media_dict, media_save_path)
+                    preprocessed_comm.comments_msg_id = message_id
+                    chunk_messages.append(preprocessed_comm)
             else:
                 keep_going = False
                 break
@@ -109,15 +106,15 @@ def get_comments_iter(
         breakpoint()
         return []
 
-def get_comments(
-    client: TelegramClient, channel: str | Channel, message_id: int, forwards_set: set, anon_func, media_dict: MediaDictType, media_save_path: Path
-)-> list[ExtendedMessage]:
-    comments = []
-    for m in get_comments_iter(client, channel, message_id):
-        preprocessed_m = preprocess(m, forwards_set, anon_func, media_dict, media_save_path)
-        preprocessed_m.comments_msg_id = message_id
-        comments.append(preprocessed_m)
-    return comments
+
+def yield_comments(
+    client: TelegramClient, channel: str | Channel, message: Message,
+):
+    replies = getattr(message, "replies", None)
+    if replies is not None and replies.replies > 0 and replies.comments:
+        for c in get_comments_iter(client, channel, message.id):
+            yield c
+
 
 def save_channel_messages(
     client: TelegramClient, channel: str | Channel,
@@ -140,13 +137,11 @@ def save_channel_messages(
                 preprocessed_m = preprocess(message, forwards_set, anon_func, media_dict, media_save_path)
                 f.write(preprocessed_m.to_json())
                 f.write('\n')
-                replies = getattr(message, "replies", None)
-                if replies is not None and replies.replies > 0 and replies.comments:
-                    for m in get_comments_iter(client, channel, message_id):
-                        preprocessed_m = preprocess(m, forwards_set, anon_func, media_dict, media_save_path)
-                        preprocessed_m.comments_msg_id = message_id
-                        f.write(preprocessed_m.to_json())
-                        f.write('\n')
+                for comm in yield_comments(client, channel, message):
+                    preprocessed_comm = preprocess(comm, forwards_set, anon_func, media_dict, media_save_path)
+                    preprocessed_comm.comments_msg_id = message_id
+                    f.write(preprocessed_comm.to_json())
+                    f.write('\n')
             else:
                 break
 
