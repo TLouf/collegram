@@ -178,7 +178,7 @@ def fwd_from_msg_ids(
 ):
     forwarded_channels = {}
     for chan_id, m_d in chans_fwd_msg.items():
-        fwd_full_chan_d = None
+        fwd_full_chan_d = {}
         m = client.get_messages(entity=chat, ids=m_d['id'], reply_to=m_d.get("reply_to"))
         fwd_from = getattr(m, "fwd_from", None)
         if fwd_from is not None:
