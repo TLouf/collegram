@@ -35,7 +35,7 @@ if __name__ == '__main__':
     # dt_from = dt_to - datetime.timedelta(days=31)
     client = collegram.client.connect(
         os.environ['API_ID'], os.environ['API_HASH'], os.environ["PHONE_NUMBER"],
-        session=str(paths.proj / 'anon.session')
+        session=str(paths.proj / 'anon.session'), flood_sleep_threshold=24*3600,
     )
     all_media_dict = {'photos': {}, 'documents': {}}
     channels = (paths.interim_data / "channels.txt").read_text().strip().split("\n")
@@ -154,6 +154,7 @@ if __name__ == '__main__':
                         _, full_chat_d = collegram.channels.get_full(
                             client, channels_dir, channel_id=i, anon_func_to_save=anonymiser.anonymise
                         )
+                        # Only public channels are added to `forwarded_chans`.
                         if full_chat_d:
                             lang = collegram.text.detect_chan_lang(
                                 full_chat_d, anonymiser.inverse_anon_map, lang_detector,
