@@ -104,7 +104,8 @@ def get_full(
     # Won't find file if `channel_id` is a username, but it's ok for our usage since we
     # always force a query for the channels in the initial seed, which are the only ones
     # we refer to with their usernames at first. Anyway, it just implies a request more.
-    save_path = channels_dir / f"{channel_id}.json"
+    anon_id = anon_func(channel_id)
+    save_path = channels_dir / f"{anon_id}.json"
     full_chat_d = json.loads(save_path.read_text()) if save_path.exists() else {}
     if full_chat_d:
         chat = get_matching_chat_from_full(full_chat_d)
@@ -122,7 +123,8 @@ def get_full(
             try:
                 full_chat = client(GetFullChannelRequest(channel=input_chan))
                 full_chat_d = get_full_anon_dict(full_chat, anon_func)
-                p = channels_dir / f"{full_chat.full_chat.id}.json"
+                anon_id = full_chat_d['full_chat']['id']
+                p = channels_dir / f"{anon_id}.json"
                 p.write_text(json.dumps(full_chat_d))
             except ChannelPrivateError:
                 logger.info(f"found private channel {channel_id}")

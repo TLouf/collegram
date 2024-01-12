@@ -4,7 +4,6 @@ import json
 import logging
 import logging.config
 import os
-from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from pprint import pprint
 
@@ -73,6 +72,7 @@ if __name__ == '__main__':
         for chat in listed_channel_full.chats:
             channel_id = chat.id
             anonymiser = collegram.utils.HMAC_anonymiser()
+            anon_channel_id = anonymiser.anonymise(channel_id)
 
             if channel_id == listed_channel_full.full_chat.id:
                 channel_full = listed_channel_full
@@ -98,10 +98,10 @@ if __name__ == '__main__':
             logger.info(f'---------------- {channel_id} ----------------')
             logger.info(f"priority {prio}, {channel_full.full_chat.participants_count} participants, {channel_full.full_chat.about}")
 
-            anon_map_save_path = paths.raw_data / 'anon_maps' / f"{channel_id}.json"
+            anon_map_save_path = paths.raw_data / 'anon_maps' / f"{anon_channel_id}.json"
             anonymiser.update_from_disk(anon_map_save_path)
 
-            channel_save_path = channels_dir / f"{channel_id}.json"
+            channel_save_path = channels_dir / f"{anon_channel_id}.json"
             channel_save_path.parent.mkdir(exist_ok=True, parents=True)
 
             users_list = collegram.users.get_channel_users(
@@ -120,11 +120,11 @@ if __name__ == '__main__':
             channel_save_path.write_text(json.dumps(channel_save_data))
 
             # Save messages, don't get to avoid overflowing memory.
-            chat_dir_path = paths.raw_data / 'messages' / f"{chat.id}"
+            chat_dir_path = paths.raw_data / 'messages' / f"{anon_channel_id}"
             chat_dir_path.mkdir(exist_ok=True, parents=True)
             media_save_path = paths.raw_data / 'media'
 
-            logger.info(f"saving messages to {chat_dir_path}")
+            logger.info(f"reading / saving messages from / to {chat_dir_path}")
             dt_from = chat.date
             dt_from = dt_from.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             dt_bin_edges = pl.datetime_range(dt_from, global_dt_to, interval='1mo', eager=True, time_zone='UTC')
