@@ -175,6 +175,7 @@ def fwd_from_msg_ids(
     client: TelegramClient, channels_dir: Path, chat: Channel,
     chans_fwd_msg: dict[int, dict], anonymiser, parent_priority,
     lang_detector: LanguageDetector, lang_priorities: dict,
+    private_chans_priority: int,
 ):
     forwarded_channels = {}
     for chan_id, m_d in chans_fwd_msg.items():
@@ -191,11 +192,10 @@ def fwd_from_msg_ids(
         else:
             logger.error("forwarded message was deleted")
 
-        if fwd_full_chan_d:
-            lang = collegram.text.detect_chan_lang(fwd_full_chan_d, anonymiser.inverse_anon_map, lang_detector)
-            forwarded_channels[chan_id] = get_explo_priority(
-                parent_priority, lang, lang_priorities,
-            )
+        prio = get_explo_priority(
+            fwd_full_chan_d, anonymiser, parent_priority, lang_detector, lang_priorities, private_chans_priority
+        )
+        forwarded_channels[chan_id] = prio
     return forwarded_channels
 
 
@@ -239,14 +239,21 @@ def get_full_anon_dict(full_chat: ChatFull, anon_func, safe=True):
     return channel_save_data
 
 
-def get_explo_priority(parent_prio: int, chan_lang: str | None, lang_priorities: dict):
-    # Some channels may be from a relevant language, but detection was just not
-    # conclusive, so default shouldn't be too high.
-    lang_prio = lang_priorities.get(chan_lang, 100)
-    # lang_prio is both increment and multiplicative factor, thus if some language has
-    # prio value N times superior, after exploring N of other language, it'l' be this
-    # language's turn.
-    prio = lang_prio * parent_prio + lang_prio
+def get_explo_priority(
+    fwd_full_chan_d: dict, anonymiser, parent_prio: int,
+    lang_detector: LanguageDetector, lang_priorities: dict, private_chans_priority: int
+):
+    if fwd_full_chan_d:
+        lang = collegram.text.detect_chan_lang(fwd_full_chan_d, anonymiser.inverse_anon_map, lang_detector)
+        # Some channels may be from a relevant language, but detection was just not
+        # conclusive, so default shouldn't be too high.
+        lang_prio = lang_priorities.get(lang, 100)
+        # lang_prio is both increment and multiplicative factor, thus if some language has
+        # prio value N times superior, after exploring N of other language, it'l' be this
+        # language's turn.
+        prio = lang_prio * parent_prio + lang_prio
+    else:
+        prio = private_chans_priority
     return prio
 
 

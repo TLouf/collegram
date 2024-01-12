@@ -26,6 +26,7 @@ if __name__ == '__main__':
     # should always be strictly positive integers, since we want to avoid rabbit holes
     # very far away from initial seed and therefore increment based on parent priority
     # for their children.
+    private_chans_priority = int(1e7)
     lang_priorities = {lc: 1 for lc in ['EN', 'FR', 'ES', 'DE', 'EL', 'IT', 'PL', 'RO']}
     lang_priorities['EN'] = 100
     lang_detector = LanguageDetectorBuilder.from_all_languages().build()
@@ -155,14 +156,10 @@ if __name__ == '__main__':
                         _, full_chat_d = collegram.channels.get_full(
                             client, channels_dir, anonymiser.anonymise, channel_id=i,
                         )
-                        # Only public channels are added to `forwarded_chans`.
-                        if full_chat_d:
-                            lang = collegram.text.detect_chan_lang(
-                                full_chat_d, anonymiser.inverse_anon_map, lang_detector,
-                            )
-                            forwarded_chans[i] = collegram.channels.get_explo_priority(
-                                prio, lang, lang_priorities,
-                            )
+                        prio = collegram.channels.get_explo_priority(
+                            full_chat_d, anonymiser, prio, lang_detector, lang_priorities, private_chans_priority
+                        )
+                        forwarded_chans[i] = prio
 
             # Make message queries only when strictly necessary. If the channel was seen
             # in new messages, no need to get it through `chans_fwd_msg_to_query`.
@@ -187,7 +184,7 @@ if __name__ == '__main__':
 
             unseen_fwd_chans_from_saved_msgs = collegram.channels.fwd_from_msg_ids(
                 client, channels_dir, chat, chans_fwd_msg_to_query, anonymiser,
-                prio, lang_detector, lang_priorities,
+                prio, lang_detector, lang_priorities, private_chans_priority,
             )
 
             channel_save_data['forwards_from'] = [
@@ -199,10 +196,9 @@ if __name__ == '__main__':
 
             # What new channels should we explore?
             new_channels = {**new_channels, **forwarded_chans, **unseen_fwd_chans_from_saved_msgs}
+            new_channels = {k: p for k, p in new_channels.items() if p < private_chans_priority}
             processed_channels.add(channel_id)
             nr_processed_channels += 1
-            # TODO: Reevaluate if save users in separate file worth it?
-            # users_save_path = paths.raw_data / 'users' / f"{channel_username}.json"
 
         for c in set(new_channels.keys()).difference(processed_channels):
             channels_queue.put((new_channels[c], str(c)))
