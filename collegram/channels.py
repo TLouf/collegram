@@ -14,6 +14,7 @@ from telethon.tl.functions.contacts import SearchRequest
 from telethon.tl.types import (
     Channel,
     ChannelFull,
+    ChatFull,
     InputPeerChannel,
     InputPeerUser,
     PeerChannel,
@@ -29,7 +30,6 @@ if typing.TYPE_CHECKING:
 
     from lingua import LanguageDetector
     from telethon import TelegramClient
-    from telethon.tl.types import ChatFull
 
 logger = logging.getLogger(__name__)
 
@@ -104,10 +104,7 @@ def get_full(
     save_path = channels_dir / f"{channel_id}.json"
     full_chat_d = json.loads(save_path.read_text()) if save_path.exists() else {}
     if full_chat_d:
-        chat = [
-            c for c in full_chat_d['chats']
-            if c['id'] == full_chat_d['full_chat']['id']
-        ][0]
+        chat = get_matching_chat_from_full(full_chat_d)
         access_hash = chat['access_hash']
 
     if force_query or not full_chat_d:
@@ -121,7 +118,7 @@ def get_full(
         elif input_chan:
             try:
                 full_chat = client(GetFullChannelRequest(channel=input_chan))
-                if anon_func_to_save is not None and channels_dir is not None:
+                if anon_func_to_save is not None:
                     full_chat_d = get_full_anon_dict(full_chat, anon_func_to_save)
                     p = channels_dir / f"{full_chat.full_chat.id}.json"
                     p.write_text(json.dumps(full_chat_d))
@@ -131,6 +128,25 @@ def get_full(
                 logger.error('unexpected valuerror')
                 breakpoint()
     return full_chat, full_chat_d
+
+
+@typing.overload
+def get_matching_chat_from_full(full_chat: ChatFull) -> Channel:
+    ...
+@typing.overload
+def get_matching_chat_from_full(full_chat: dict) -> dict:
+    ...
+def get_matching_chat_from_full(full_chat: ChatFull | dict) -> Channel | dict:
+    get = lambda obj, s: (
+        getattr(obj, s)
+        if isinstance(full_chat, ChatFull)
+        else obj.get(s)
+    )
+    chat = [
+        c for c in get(full_chat, 'chats')
+        if get(c, 'id') == get(get(full_chat, 'full_chat'), 'id')
+    ][0]
+    return chat
 
 
 def recover_fwd_from_msgs(messages_path: Path) -> dict[int, dict]:
@@ -258,7 +274,7 @@ CHANGED_CHAN_FIELDS = {
 }
 
 def flatten_dict(c: dict) -> tuple[dict, list | None]:
-    flat_c = {**[chat for chat in c['chats'] if chat['id'] == c['full_chat']['id']][0], **c['full_chat']}
+    flat_c = {**get_matching_chat_from_full(c), **c['full_chat']}
     flat_c['date'] = datetime.datetime.fromisoformat(flat_c['date'])
     flat_c['last_queried_at'] = datetime.datetime.fromisoformat(flat_c['last_queried_at'])
     flat_c['forwards_from'] = c.get('forwards_from')
