@@ -260,6 +260,7 @@ CHANGED_CHAN_FIELDS = {
 def flatten_dict(c: dict) -> tuple[dict, list | None]:
     flat_c = {**[chat for chat in c['chats'] if chat['id'] == c['full_chat']['id']][0], **c['full_chat']}
     flat_c['date'] = datetime.datetime.fromisoformat(flat_c['date'])
+    flat_c['last_queried_at'] = datetime.datetime.fromisoformat(flat_c['last_queried_at'])
     flat_c['forwards_from'] = c.get('forwards_from')
     flat_c['linked_chats_ids'] = [chat['id'] for chat in c['chats'] if chat['id'] != c['full_chat']['id']]
     # From chanfull:
