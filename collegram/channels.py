@@ -66,6 +66,9 @@ def get_input_peer(client: TelegramClient, channel_id: int, access_hash: None) -
 def get_input_peer(client: TelegramClient, channel_id: str | int, access_hash: int | None = None):
     if isinstance(channel_id, str):
         try:
+            # Using `get_input_entity` instead of just passing the str through to avoid
+            # skipping too many errors by catching on `GetFullChannelRequest`, which
+            # doesn't allow to know if no peer was found, or if wrong type of peer was.
             return client.get_input_entity(channel_id)
         except (UsernameInvalidError, ValueError):
             logger.error(f'No peer has "{channel_id}" as username')
