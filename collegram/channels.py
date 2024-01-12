@@ -133,7 +133,7 @@ def get_full(
     return full_chat, full_chat_d
 
 
-def recover_fwd_from_msgs(messages_path: Path) -> dict[int, int]:
+def recover_fwd_from_msgs(messages_path: Path) -> dict[int, dict]:
     chans_fwd_msg = {}
     if messages_path.is_dir():
         fpaths_iter = messages_path.glob('*.jsonl')
@@ -147,18 +147,21 @@ def recover_fwd_from_msgs(messages_path: Path) -> dict[int, int]:
             if m.fwd_from is not None:
                 from_chan_id = getattr(m.fwd_from.from_id, 'channel_id', None)
                 if from_chan_id is not None:
-                    chans_fwd_msg[from_chan_id] = m.id
+                    chans_fwd_msg[from_chan_id] = {'id': m.id}
+                    if m.reply_to is not None:
+                        chans_fwd_msg[from_chan_id]['reply_to'] = m.reply_to.reply_to_msg_id
 
     return chans_fwd_msg
 
 def fwd_from_msg_ids(
     client: TelegramClient, channels_dir: Path, chat: Channel,
-    chans_fwd_msg: dict[int, int], anonymiser,
-    **priority_kwargs
+    chans_fwd_msg: dict[int, dict], anonymiser, parent_priority,
+    lang_detector: LanguageDetector, lang_priorities: dict,
 ):
     forwarded_channels = {}
-    for chan_id, m_id in chans_fwd_msg.items():
-        m = client.get_messages(entity=chat, ids=m_id)
+    for chan_id, m_d in chans_fwd_msg.items():
+        fwd_full_chan_d = None
+        m = client.get_messages(entity=chat, ids=m_d['id'], reply_to=m_d.get("reply_to"))
         fwd_from = getattr(m, "fwd_from", None)
         if fwd_from is not None:
             _, fwd_full_chan_d = get_full(

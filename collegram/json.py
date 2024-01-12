@@ -34,6 +34,7 @@ class Action(msgspec.Struct):
 class MaybeForwardedMessage(msgspec.Struct):
     id: int
     fwd_from: FwdFrom | None = None
+    reply_to: ReplyHeader | None = None
 
 class Message(MessageBase):
     message: str
