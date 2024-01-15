@@ -37,7 +37,6 @@ if __name__ == '__main__':
         os.environ['API_ID'], os.environ['API_HASH'], os.environ["PHONE_NUMBER"],
         session=str(paths.proj / 'anon.session'), flood_sleep_threshold=24*3600,
     )
-    all_media_dict = {'photos': {}, 'documents': {}}
     channels = (paths.interim_data / "channels.txt").read_text().strip().split("\n")
     logger.info(f"{list(channels)}")
     channels_queue = collegram.utils.UniquePriorityQueue()
@@ -124,7 +123,7 @@ if __name__ == '__main__':
             chat_dir_path.mkdir(exist_ok=True, parents=True)
             media_save_path = paths.raw_data / 'media'
 
-            logger.info(f"reading / saving messages from / to {chat_dir_path}")
+            logger.info(f"reading/saving messages from/to {chat_dir_path}")
             dt_from = chat.date
             dt_from = dt_from.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             dt_bin_edges = pl.datetime_range(dt_from, global_dt_to, interval='1mo', eager=True, time_zone='UTC')
@@ -146,10 +145,12 @@ if __name__ == '__main__':
                             # Check if not empty file before reading message
                             offset_id = collegram.json.read_message(last_message_saved).id
 
+                    all_media_dict = {'photos': {}, 'documents': {}}
                     collegram.messages.save_channel_messages(
                         client, chat, dt_from, dt_to, chunk_fwds, anonymiser.anonymise,
                         messages_save_path, all_media_dict, media_save_path, offset_id=offset_id
                     )
+                    # collegram.media.download_from_dict(client, all_media_dict, paths.raw_data / 'media', only_photos=True)
                     anonymiser.save_map(anon_map_save_path)
                     new_fwds = chunk_fwds.difference(forwarded_chans.keys())
                     for i in new_fwds:
@@ -169,7 +170,6 @@ if __name__ == '__main__':
                 fwd_id = inverse_anon_map.get(c)
                 if fwd_id is not None:
                     id_map_fwd_chans[int(fwd_id)] = c
-                    # TODO: get_or_load_full and populate forwarded_chans
                 else:
                     logger.error(f"anon_map of {channel_id} is incomplete, {c} was not found.")
 
@@ -204,5 +204,3 @@ if __name__ == '__main__':
             channels_queue.put((new_channels[c], str(c)))
         nr_remaining_channels = channels_queue.qsize()
         logger.info(f"{nr_processed_channels} channels already processed, {nr_remaining_channels} to go")
-
-    # collegram.media.download_from_dict(client, all_media_dict, paths.raw_data / 'media', only_photos=True)
