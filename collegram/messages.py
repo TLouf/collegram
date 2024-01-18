@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Iterable
 
 from telethon.errors import MsgIdInvalidError
 from telethon.helpers import add_surrogate
-from telethon.tl.functions.messages import GetRepliesRequest
 from telethon.tl.types import (
     Message,
     MessageActionChannelCreate,

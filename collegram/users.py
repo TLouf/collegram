@@ -73,7 +73,6 @@ def flatten_dict(p: dict):
     flat_p = p.copy()
     for f in DISCARDED_USER_FIELDS:
         flat_p.pop(f)
-    # TODO status?
     return flat_p
 
 def get_pl_schema():
