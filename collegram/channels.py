@@ -281,12 +281,14 @@ CHANGED_CHAN_FIELDS = {
     'location_str': pl.Utf8,
     'usernames': pl.List(pl.Utf8),
     'migrated_to': pl.Utf8,
+    'last_queried_at': pl.Datetime,
 }
 
 def flatten_dict(c: dict) -> tuple[dict, list | None]:
     flat_c = {**get_matching_chat_from_full(c), **c['full_chat']}
     flat_c['date'] = datetime.datetime.fromisoformat(flat_c['date'])
-    flat_c['last_queried_at'] = datetime.datetime.fromisoformat(c['last_queried_at'])
+    last_queried_at = c.get('last_queried_at')
+    flat_c['last_queried_at'] = datetime.datetime.fromisoformat(last_queried_at) if last_queried_at is not None else None
     flat_c['forwards_from'] = c.get('forwards_from')
     flat_c['linked_chats_ids'] = [chat['id'] for chat in c['chats'] if chat['id'] != c['full_chat']['id']]
     # From chanfull:
@@ -307,7 +309,7 @@ def flatten_dict(c: dict) -> tuple[dict, list | None]:
             flat_c['location_point'] = [point['long'], point['lat']]
         flat_c['location_str'] = location['address']
 
-    flat_c['usernames'] = flat_c.pop('usernames')
+    flat_c['usernames'] = flat_c.pop('usernames', [])
     for i, uname in enumerate(flat_c['usernames']):
         flat_c['usernames'][i] = uname['username']
 
