@@ -58,14 +58,14 @@ logger = logging.getLogger(__name__)
 
 
 MESSAGE_CONTENT_TYPE_MAP = {
-    'document': InputMessagesFilterDocument,
-    'all': InputMessagesFilterEmpty,
-    'gif': InputMessagesFilterGif,
-    'music': InputMessagesFilterMusic,
-    'photo': InputMessagesFilterPhotos,
-    'url': InputMessagesFilterUrl,
-    'video': InputMessagesFilterVideo,
-    'voice': InputMessagesFilterVoice,
+    'document': InputMessagesFilterDocument(),
+    'message': InputMessagesFilterEmpty(),
+    'gif': InputMessagesFilterGif(),
+    'music': InputMessagesFilterMusic(),
+    'photo': InputMessagesFilterPhotos(),
+    'url': InputMessagesFilterUrl(),
+    'video': InputMessagesFilterVideo(),
+    'voice': InputMessagesFilterVoice(),
 }
 
 def get_channel_messages(
