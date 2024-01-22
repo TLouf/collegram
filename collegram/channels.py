@@ -21,7 +21,6 @@ from telethon.tl.types import (
     InputPeerChannel,
     InputPeerUser,
     PeerChannel,
-    TypeInputPeer,
 )
 
 import collegram.json
@@ -36,6 +35,7 @@ if typing.TYPE_CHECKING:
     from telethon.tl.types import (
         TypeChat,
         TypeInputChannel,
+        TypeInputPeer,
     )
 
 logger = logging.getLogger(__name__)
