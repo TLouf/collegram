@@ -36,7 +36,6 @@ from telethon.tl.types import (
     PeerChannel,
     PeerChat,
     PeerUser,
-    TypePeer,
 )
 from telethon.tl.types.messages import ChannelMessages
 
@@ -50,6 +49,7 @@ if TYPE_CHECKING:
         Channel,
         TypeInputChannel,
         TypeMessagesFilter,
+        TypePeer,
     )
 
     from collegram.media import MediaDictType
