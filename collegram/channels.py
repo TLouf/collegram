@@ -24,6 +24,7 @@ from telethon.tl.types import (
 )
 
 import collegram.json
+import collegram.messages
 import collegram.text
 from collegram.utils import PY_PL_DTYPES_MAP
 
@@ -290,15 +291,22 @@ CHANGED_CHAN_FIELDS = {
     'linked_chat_id': pl.Utf8,
     'migrated_from_chat_id': pl.Utf8,
     'forwards_from': pl.List(pl.Utf8),
-    'linked_chats_ids': pl.List(pl.Utf8),
-    'bot_ids': pl.List(pl.Int64),
-    'sticker_set_id': pl.Int64,
-    'location_point': pl.List(pl.Float64),
-    'location_str': pl.Utf8,
     'usernames': pl.List(pl.Utf8),
     'migrated_to': pl.Utf8,
-    'last_queried_at': pl.Datetime,
 }
+NEW_CHAN_FIELDS = {
+    'bot_ids': pl.List(pl.Int64),
+    'linked_chats_ids': pl.List(pl.Utf8),
+    'location_point': pl.List(pl.Float64),
+    'location_str': pl.Utf8,
+    'last_queried_at': pl.Datetime,
+    'sticker_set_id': pl.Int64,
+    **{
+        f"{content_type}_count": pl.Int64
+        for content_type in collegram.messages.MESSAGE_CONTENT_TYPE_MAP.keys()
+    },
+}
+
 
 def flatten_dict(c: dict) -> tuple[dict, list | None]:
     flat_c = {**get_matching_chat_from_full(c), **c['full_chat']}
@@ -306,6 +314,10 @@ def flatten_dict(c: dict) -> tuple[dict, list | None]:
     last_queried_at = c.get('last_queried_at')
     flat_c['last_queried_at'] = datetime.datetime.fromisoformat(last_queried_at) if last_queried_at is not None else None
     flat_c['forwards_from'] = c.get('forwards_from')
+    flat_c['recommended_channels'] = c.get('recommended_channels')
+    for content_type in collegram.messages.MESSAGE_CONTENT_TYPE_MAP.keys():
+        count_key = f"{content_type}_count"
+        flat_c[count_key] = c.get('count_key')
     flat_c['linked_chats_ids'] = [chat['id'] for chat in c['chats'] if chat['id'] != c['full_chat']['id']]
     # From chanfull:
     flat_c['bot_ids'] = flat_c.pop('bot_info')
@@ -347,5 +359,5 @@ def get_pl_schema():
         inner_dtype = typing.get_args(dtype)
         inner_dtype = inner_dtype[0] if len(inner_dtype) > 0 else dtype
         chan_schema[arg] = PY_PL_DTYPES_MAP.get(inner_dtype)
-    chan_schema.update(CHANGED_CHAN_FIELDS)
+    chan_schema = {**chan_schema, **CHANGED_CHAN_FIELDS, **NEW_CHAN_FIELDS}
     return chan_schema
