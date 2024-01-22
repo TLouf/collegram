@@ -94,7 +94,7 @@ def get(
             return client.get_entity(input_chan)
         except ChannelPrivateError:
             channel_id = channel.id if isinstance(channel, Channel) else channel
-            logger.info(f"found private channel {channel_id}")
+            logger.debug(f"found private channel {channel_id}")
             return
 
 
@@ -135,7 +135,7 @@ def get_full(
                 p = channels_dir / f"{anon_id}.json"
                 p.write_text(json.dumps(full_chat_d))
             except ChannelPrivateError:
-                logger.info(f"found private channel {channel_id}")
+                logger.debug(f"found private channel {channel_id}")
             except ValueError:
                 logger.error('unexpected valuerror')
                 breakpoint()
