@@ -113,6 +113,22 @@ if __name__ == '__main__':
                 channel_full, anonymiser.anonymise
             )
             channel_save_data['participants'] =  [json.loads(u.to_json()) for u in users_list]
+
+            recommended_chans = {}
+            channel_save_data['recommended_channels'] = []
+            for c in collegram.channels.get_recommended(client, chat):
+                _, full_chat_d = collegram.channels.get_full(
+                    client, channels_dir, anonymiser.anonymise, channel=c,
+                )
+                # Since recommended is a strong signal of homophily (at least in user
+                # base), keep the parent's priority.
+                recommended_chans[c.id] = prio
+                channel_save_data['recommended_channels'].append(anonymiser.anonymise(c.id))
+
+            for content_type, f in collegram.messages.MESSAGE_CONTENT_TYPE_MAP.items():
+                count = collegram.messages.get_channel_messages_count(client, chat, f)
+                channel_save_data[f"{content_type}_count"] = count
+
             channel_save_data['forwards_from'] = channel_saved_data.get('forwards_from', [])
             anonymiser.save_map(anon_map_save_path)
             channel_save_data['last_queried_at'] = datetime.datetime.now(datetime.UTC).isoformat()
@@ -194,7 +210,7 @@ if __name__ == '__main__':
             channel_save_path.write_text(json.dumps(channel_save_data))
 
             # What new channels should we explore?
-            new_channels = {**new_channels, **forwarded_chans, **unseen_fwd_chans_from_saved_msgs}
+            new_channels = {**new_channels, **forwarded_chans, **unseen_fwd_chans_from_saved_msgs, **recommended_chans}
             new_channels = {k: p for k, p in new_channels.items() if p < private_chans_priority}
             processed_channels.add(channel_id)
             nr_processed_channels += 1
