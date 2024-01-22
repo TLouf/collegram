@@ -9,7 +9,10 @@ import typing
 
 import polars as pl
 from telethon.errors import ChannelPrivateError, UsernameInvalidError
-from telethon.tl.functions.channels import GetFullChannelRequest
+from telethon.tl.functions.channels import (
+    GetChannelRecommendationsRequest,
+    GetFullChannelRequest,
+)
 from telethon.tl.functions.contacts import SearchRequest
 from telethon.tl.types import (
     Channel,
@@ -30,6 +33,10 @@ if typing.TYPE_CHECKING:
 
     from lingua import LanguageDetector
     from telethon import TelegramClient
+    from telethon.tl.types import (
+        TypeChat,
+        TypeInputChannel,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +139,15 @@ def get_full(
                 logger.error('unexpected valuerror')
                 breakpoint()
     return full_chat, full_chat_d
+
+
+def content_count(client: TelegramClient, channel: TypeInputChannel, content_type: str):
+    f = collegram.messages.MESSAGE_CONTENT_TYPE_MAP[content_type]
+    return collegram.messages.get_channel_messages_count(client, channel, f)
+
+
+def get_recommended(client: TelegramClient, channel: TypeInputChannel) -> list[TypeChat]:
+    return client(GetChannelRecommendationsRequest(channel)).chats
 
 
 @typing.overload
