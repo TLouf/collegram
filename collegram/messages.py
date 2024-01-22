@@ -7,7 +7,16 @@ from typing import TYPE_CHECKING, Iterable
 
 from telethon.errors import MsgIdInvalidError
 from telethon.helpers import add_surrogate
+from telethon.tl.functions.messages import SearchRequest
 from telethon.tl.types import (
+    InputMessagesFilterDocument,
+    InputMessagesFilterEmpty,
+    InputMessagesFilterGif,
+    InputMessagesFilterMusic,
+    InputMessagesFilterPhotos,
+    InputMessagesFilterUrl,
+    InputMessagesFilterVideo,
+    InputMessagesFilterVoice,
     Message,
     MessageActionChannelCreate,
     MessageActionChannelMigrateFrom,
@@ -29,6 +38,7 @@ from telethon.tl.types import (
     PeerUser,
     TypePeer,
 )
+from telethon.tl.types.messages import ChannelMessages
 
 import collegram.media
 
@@ -36,11 +46,27 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from telethon import TelegramClient
-    from telethon.tl.types import Channel
+    from telethon.tl.types import (
+        Channel,
+        TypeInputChannel,
+        TypeMessagesFilter,
+    )
 
     from collegram.media import MediaDictType
 
 logger = logging.getLogger(__name__)
+
+
+MESSAGE_CONTENT_TYPE_MAP = {
+    'document': InputMessagesFilterDocument,
+    'all': InputMessagesFilterEmpty,
+    'gif': InputMessagesFilterGif,
+    'music': InputMessagesFilterMusic,
+    'photo': InputMessagesFilterPhotos,
+    'url': InputMessagesFilterUrl,
+    'video': InputMessagesFilterVideo,
+    'voice': InputMessagesFilterVoice,
+}
 
 def get_channel_messages(
     client: TelegramClient, channel: str | Channel,
@@ -143,6 +169,13 @@ def save_channel_messages(
                     f.write('\n')
             else:
                 break
+
+
+def query_channel_messages(client: TelegramClient, channel: TypeInputChannel, f: TypeMessagesFilter, query: str = '') -> ChannelMessages:
+    return client(SearchRequest(channel, query, f, None, None, 0, 0, 0, 0, 0, 0))
+
+def get_channel_messages_count(client: TelegramClient, channel: TypeInputChannel, f: TypeMessagesFilter, query: str = '') -> int:
+    return query_channel_messages(client, channel, f, query=query).count
 
 
 def preprocess(
