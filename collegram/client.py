@@ -6,6 +6,7 @@ from telethon.errors import SessionPasswordNeededError
 
 logger = logging.getLogger(__name__)
 
+
 def connect(api_id, api_hash, phone_nr, session="anon", **client_kwargs):
     client = TelegramClient(session, api_id, api_hash, **client_kwargs)
     client.start()

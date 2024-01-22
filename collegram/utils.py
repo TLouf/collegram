@@ -14,7 +14,7 @@ import polars as pl
 if TYPE_CHECKING:
     from pathlib import Path
 
-LOCAL_FS = fsspec.filesystem('local')
+LOCAL_FS = fsspec.filesystem("local")
 
 
 class UniquePriorityQueue(PriorityQueue):
@@ -34,7 +34,12 @@ class UniquePriorityQueue(PriorityQueue):
 
 
 class HMAC_anonymiser:
-    def __init__(self, key: str | None = None, key_env_var_name: str = "HMAC_KEY", anon_map: dict | None = None):
+    def __init__(
+        self,
+        key: str | None = None,
+        key_env_var_name: str = "HMAC_KEY",
+        anon_map: dict | None = None,
+    ):
         if key is None:
             key = os.environ[key_env_var_name]
         self.key = bytes.fromhex(key)
@@ -61,21 +66,23 @@ class HMAC_anonymiser:
                 data_str = str(data)
                 data = self.anon_map.get(data_str)
                 if data is None:
-                    data = hmac.digest(self.key, data_str.encode('utf-8', 'surrogatepass'), 'sha256').hex()
+                    data = hmac.digest(
+                        self.key, data_str.encode("utf-8", "surrogatepass"), "sha256"
+                    ).hex()
                     self.anon_map[data_str] = data
         return data
 
     def update_from_disk(self, save_path, fs: fsspec.AbstractFileSystem = LOCAL_FS):
         save_path = str(save_path)
         if fs.exists(save_path):
-            with fs.open(save_path, 'r') as f:
+            with fs.open(save_path, "r") as f:
                 d = json.load(f)
             self.anon_map.update(d)
 
     def save_map(self, save_path: Path, fs: fsspec.AbstractFileSystem = LOCAL_FS):
         parent = str(save_path.parent)
         fs.mkdirs(parent, exist_ok=True)
-        with fs.open(str(save_path), 'w') as f:
+        with fs.open(str(save_path), "w") as f:
             json.dump(self.anon_map, f)
 
     @property
@@ -89,19 +96,18 @@ def read_nth_to_last_line(path, fs: fsspec.AbstractFileSystem = LOCAL_FS, n=1):
     https://stackoverflow.com/questions/46258499/how-to-read-the-last-line-of-a-file-in-python
     """
     num_newlines = 0
-    with fs.open(str(path), 'rb') as f:
+    with fs.open(str(path), "rb") as f:
         try:
             f.seek(-2, os.SEEK_END)
             while num_newlines < n:
                 f.seek(-2, os.SEEK_CUR)
-                if f.read(1) == b'\n':
+                if f.read(1) == b"\n":
                     num_newlines += 1
         except (OSError, ValueError):
             # catch OSError in case of a one line file
             f.seek(0)
         last_line = f.readline().decode()
     return last_line
-
 
 
 PY_PL_DTYPES_MAP = defaultdict(

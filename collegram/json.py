@@ -14,14 +14,14 @@ if TYPE_CHECKING:
 
 
 RELEVANT_MEDIA_TYPES = {
-    'MessageMediaWebPage': 'webpage',
-    'MessageMediaPhoto': 'photo',
-    'MessageMediaDocument': 'document',
+    "MessageMediaWebPage": "webpage",
+    "MessageMediaPhoto": "photo",
+    "MessageMediaDocument": "document",
 }
 PEER_TYPES_ID = {
-    'PeerChannel': 'channel_id',
-    'PeerUser': 'user_id',
-    'PeerChat': 'chat_id',
+    "PeerChannel": "channel_id",
+    "PeerUser": "user_id",
+    "PeerChat": "chat_id",
 }
 
 
@@ -29,16 +29,20 @@ class MessageBase(msgspec.Struct, tag_field="_"):
     id: int
     date: datetime.datetime | None
 
+
 class MessageService(MessageBase):
     action: Any
 
+
 class Action(msgspec.Struct):
-    pass # TODO?
+    pass  # TODO?
+
 
 class MaybeForwardedMessage(msgspec.Struct):
     id: int
     fwd_from: FwdFrom | None = None
     reply_to: ReplyHeader | None = None
+
 
 class Message(MessageBase):
     message: str
@@ -67,11 +71,13 @@ class Message(MessageBase):
     text_urls: list[str] | None = None
     text_mentions: list[str] | None = None
 
+
 class Peer(msgspec.Struct):
     _: str
     channel_id: str | None = None
     user_id: str | None = None
     chat_id: str | None = None
+
 
 class Media(msgspec.Struct):
     _: str
@@ -79,27 +85,34 @@ class Media(msgspec.Struct):
     photo: MediaType | None = None
     webpage: MediaType | None = None
 
+
 class MediaType(msgspec.Struct):
     id: int
+
 
 class FwdFrom(msgspec.Struct):
     date: datetime.datetime | None
     from_id: Peer | None = None
 
+
 class Replies(msgspec.Struct):
     replies: int
     comments: bool | None = None
+
 
 class ReplyHeader(msgspec.Struct):
     reply_to_msg_id: int | None = None
     forum_topic: bool | None = None
 
+
 class Reactions(msgspec.Struct):
     results: list[ReactionCount] | None = None
+
 
 class ReactionCount(msgspec.Struct):
     count: int
     reaction: Reaction
+
 
 class Reaction(msgspec.Struct):
     emoticon: str | None = None
@@ -110,24 +123,58 @@ MessageJSONDecodeType = Union[Message, MessageService]
 MESSAGE_JSON_DECODER = msgspec.json.Decoder(type=MessageJSONDecodeType)
 FAST_FORWARD_DECODER = msgspec.json.Decoder(type=MaybeForwardedMessage)
 
-def read_messages_json(path: str | Path, fs: AbstractFileSystem = LOCAL_FS, decoder: msgspec.json.Decoder = MESSAGE_JSON_DECODER):
-    with fs.open(str(path), 'r') as f:
+
+def read_messages_json(
+    path: str | Path,
+    fs: AbstractFileSystem = LOCAL_FS,
+    decoder: msgspec.json.Decoder = MESSAGE_JSON_DECODER,
+):
+    with fs.open(str(path), "r") as f:
         return decoder.decode_lines(f.read())
 
-def read_message(message: bytes | str, decoder: msgspec.json.Decoder = MESSAGE_JSON_DECODER):
+
+def read_message(
+    message: bytes | str, decoder: msgspec.json.Decoder = MESSAGE_JSON_DECODER
+):
     return decoder.decode(message)
 
-def yield_message(fpath: str | Path, fs: AbstractFileSystem = LOCAL_FS, decoder: msgspec.json.Decoder = MESSAGE_JSON_DECODER):
+
+def yield_message(
+    fpath: str | Path,
+    fs: AbstractFileSystem = LOCAL_FS,
+    decoder: msgspec.json.Decoder = MESSAGE_JSON_DECODER,
+):
     with fs.open(str(fpath), "r") as f:
         for line in f:
             if line:
                 yield read_message(line, decoder)
 
+
 def messages_to_dict(messages: list[Message]):
     # can also determine nested from Message.__annotations__, but not super robust
-    nested_f = ['media', 'reply_to', 'from_id', 'reply_to', 'fwd_from', 'replies', 'reactions']
+    nested_f = [
+        "media",
+        "reply_to",
+        "from_id",
+        "reply_to",
+        "fwd_from",
+        "replies",
+        "reactions",
+    ]
     non_nested_f = set(Message.__struct_fields__).difference(nested_f)
-    new_f = ['media_type', 'media_id', 'from_type', 'from_id', 'replies_to_msg_id', 'fwd_from_date', 'fwd_from_type', 'fwd_from_id', 'nr_replies', 'has_comments', 'reactions']
+    new_f = [
+        "media_type",
+        "media_id",
+        "from_type",
+        "from_id",
+        "replies_to_msg_id",
+        "fwd_from_date",
+        "fwd_from_type",
+        "fwd_from_id",
+        "nr_replies",
+        "has_comments",
+        "reactions",
+    ]
     final_fields = non_nested_f.union(new_f)
     m_dict = {field: [] for field in final_fields}
     for m in messages:
@@ -136,47 +183,49 @@ def messages_to_dict(messages: list[Message]):
 
         media = m.media
         if media is not None:
-            m_dict['media_type'].append(RELEVANT_MEDIA_TYPES.get(media._, 'other'))
+            m_dict["media_type"].append(RELEVANT_MEDIA_TYPES.get(media._, "other"))
             rel_media = media.webpage or media.document or media.photo
-            m_dict['media_id'].append(None if rel_media is None else rel_media.id)
+            m_dict["media_id"].append(None if rel_media is None else rel_media.id)
         else:
-            m_dict['media_type'].append(None)
-            m_dict['media_id'].append(None)
+            m_dict["media_type"].append(None)
+            m_dict["media_id"].append(None)
 
         from_id = m.from_id
         if from_id is not None:
-            m_dict['from_type'].append(from_id._)
-            m_dict['from_id'].append(getattr(from_id, PEER_TYPES_ID[from_id._]))
+            m_dict["from_type"].append(from_id._)
+            m_dict["from_id"].append(getattr(from_id, PEER_TYPES_ID[from_id._]))
         else:
-            m_dict['from_id'].append(None)
-            m_dict['from_type'].append(None)
+            m_dict["from_id"].append(None)
+            m_dict["from_type"].append(None)
 
         reply_to = m.reply_to
-        m_dict['replies_to_msg_id'].append(None if reply_to is None else reply_to.reply_to_msg_id)
+        m_dict["replies_to_msg_id"].append(
+            None if reply_to is None else reply_to.reply_to_msg_id
+        )
 
         fwd_from = m.fwd_from
         if fwd_from is not None:
-            m_dict['fwd_from_date'].append(fwd_from.date)
+            m_dict["fwd_from_date"].append(fwd_from.date)
             if fwd_from.from_id is not None:
-                m_dict['fwd_from_type'].append(fwd_from.from_id._)
-                m_dict['fwd_from_id'].append(
+                m_dict["fwd_from_type"].append(fwd_from.from_id._)
+                m_dict["fwd_from_id"].append(
                     getattr(fwd_from.from_id, PEER_TYPES_ID[fwd_from.from_id._])
                 )
             else:
-                m_dict['fwd_from_type'].append(None)
-                m_dict['fwd_from_id'].append(None)
+                m_dict["fwd_from_type"].append(None)
+                m_dict["fwd_from_id"].append(None)
         else:
-            m_dict['fwd_from_date'].append(None)
-            m_dict['fwd_from_type'].append(None)
-            m_dict['fwd_from_id'].append(None)
+            m_dict["fwd_from_date"].append(None)
+            m_dict["fwd_from_type"].append(None)
+            m_dict["fwd_from_id"].append(None)
 
         replies = m.replies
         if replies is not None:
-            m_dict['nr_replies'].append(replies.replies)
-            m_dict['has_comments'].append(replies.comments)
+            m_dict["nr_replies"].append(replies.replies)
+            m_dict["has_comments"].append(replies.comments)
         else:
-            m_dict['nr_replies'].append(0)
-            m_dict['has_comments'].append(False)
+            m_dict["nr_replies"].append(0)
+            m_dict["has_comments"].append(False)
 
         if m.reactions is not None:
             # There can be big number of different reactions, so keep this as dict
@@ -187,21 +236,22 @@ def messages_to_dict(messages: list[Message]):
                     # Cast `document_id` to string to have consistent type.
                     key = r.reaction.emoticon or str(r.reaction.document_id)
                     reaction_d[key] = r.count
-            m_dict['reactions'].append(reaction_d)
+            m_dict["reactions"].append(reaction_d)
         else:
-            m_dict['reactions'].append(None)
+            m_dict["reactions"].append(None)
     return m_dict
 
+
 def service_messages_to_dict(messages: list[MessageService]):
-    nested_f = ['action']
+    nested_f = ["action"]
     non_nested_f = set(MessageService.__struct_fields__).difference(nested_f)
-    new_f = ['action', 'action_type']
+    new_f = ["action", "action_type"]
     final_fields = non_nested_f.union(new_f)
     m_dict = {field: [] for field in final_fields}
     for m in messages:
         for field in non_nested_f:
             m_dict[field].append(getattr(m, field))
         action_d = msgspec.to_builtins(m.action)
-        m_dict['action_type'].append(action_d.pop('_'))
-        m_dict['action'].append(action_d)
+        m_dict["action_type"].append(action_d.pop("_"))
+        m_dict["action"].append(action_d)
     return m_dict

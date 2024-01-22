@@ -60,26 +60,31 @@ logger = logging.getLogger(__name__)
 
 
 MESSAGE_CONTENT_TYPE_MAP = {
-    'document': InputMessagesFilterDocument(),
-    'message': InputMessagesFilterEmpty(),
-    'gif': InputMessagesFilterGif(),
-    'music': InputMessagesFilterMusic(),
-    'photo': InputMessagesFilterPhotos(),
-    'url': InputMessagesFilterUrl(),
-    'video': InputMessagesFilterVideo(),
-    'voice': InputMessagesFilterVoice(),
+    "document": InputMessagesFilterDocument(),
+    "message": InputMessagesFilterEmpty(),
+    "gif": InputMessagesFilterGif(),
+    "music": InputMessagesFilterMusic(),
+    "photo": InputMessagesFilterPhotos(),
+    "url": InputMessagesFilterUrl(),
+    "video": InputMessagesFilterVideo(),
+    "voice": InputMessagesFilterVoice(),
 }
 
+
 def get_channel_messages(
-    client: TelegramClient, channel: str | Channel,
-    dt_from: datetime.datetime, dt_to: datetime.datetime,
-    forwards_set: set, anon_func,
-    media_dict: MediaDictType, media_save_path: Path,
+    client: TelegramClient,
+    channel: str | Channel,
+    dt_from: datetime.datetime,
+    dt_to: datetime.datetime,
+    forwards_set: set,
+    anon_func,
+    media_dict: MediaDictType,
+    media_save_path: Path,
 ):
-    '''
+    """
     DEPRECATED
     dt_to exclusive
-    '''
+    """
     message_id = 0
     limit = 10000
     all_messages = []
@@ -88,7 +93,9 @@ def get_channel_messages(
 
     while keep_going:
         chunk_messages = []
-        logger.info(f"Current Offset ID is: {message_id}; Total Messages: {total_messages}")
+        logger.info(
+            f"Current Offset ID is: {message_id}; Total Messages: {total_messages}"
+        )
         # Telethon docs are misleading, `offset_date` is in fact a datetime.
         messages = client.iter_messages(
             entity=channel,
@@ -104,10 +111,14 @@ def get_channel_messages(
             # by default)
             if message.date >= dt_from:
                 chunk_messages.append(
-                    preprocess(message, forwards_set, anon_func, media_dict, media_save_path)
+                    preprocess(
+                        message, forwards_set, anon_func, media_dict, media_save_path
+                    )
                 )
                 for comm in yield_comments(client, channel, message):
-                    preprocessed_comm = preprocess(comm, forwards_set, anon_func, media_dict, media_save_path)
+                    preprocessed_comm = preprocess(
+                        comm, forwards_set, anon_func, media_dict, media_save_path
+                    )
                     preprocessed_comm.comments_msg_id = message_id
                     chunk_messages.append(preprocessed_comm)
             else:
@@ -125,8 +136,10 @@ def get_channel_messages(
 
 
 def get_comments_iter(
-    client: TelegramClient, channel: str | Channel, message_id: int,
-)-> Iterable[Message]:
+    client: TelegramClient,
+    channel: str | Channel,
+    message_id: int,
+) -> Iterable[Message]:
     try:
         return client.iter_messages(channel, reply_to=message_id)
     except MsgIdInvalidError:
@@ -136,7 +149,9 @@ def get_comments_iter(
 
 
 def yield_comments(
-    client: TelegramClient, channel: str | Channel, message: Message,
+    client: TelegramClient,
+    channel: str | Channel,
+    message: Message,
 ):
     replies = getattr(message, "replies", None)
     if replies is not None and replies.replies > 0 and replies.comments:
@@ -145,65 +160,103 @@ def yield_comments(
 
 
 def save_channel_messages(
-    client: TelegramClient, channel: str | Channel,
-    dt_from: datetime.datetime, dt_to: datetime.datetime,
-    forwards_set: set, anon_func, messages_save_path,
-    media_dict: MediaDictType, media_save_path: Path,
-    offset_id=0, fs: AbstractFileSystem = LOCAL_FS,
+    client: TelegramClient,
+    channel: str | Channel,
+    dt_from: datetime.datetime,
+    dt_to: datetime.datetime,
+    forwards_set: set,
+    anon_func,
+    messages_save_path,
+    media_dict: MediaDictType,
+    media_save_path: Path,
+    offset_id=0,
+    fs: AbstractFileSystem = LOCAL_FS,
 ):
-    '''
+    """
     dt_to exclusive
-    '''
+    """
     # Telethon docs are misleading, `offset_date` is in fact a datetime.
     with fs.open(messages_save_path, "a") as f:
-        for message in client.iter_messages(entity=channel, offset_date=dt_to, offset_id=offset_id):
+        for message in client.iter_messages(
+            entity=channel, offset_date=dt_to, offset_id=offset_id
+        ):
             message_id = message.id
             # Take messages in until we've gone further than `date_until` in the past
             # (works because HistoryRequest gets messages in reverse chronological order
             # by default)
             if message.date >= dt_from:
                 preprocessed_m = preprocess(
-                    message, forwards_set, anon_func, media_dict, media_save_path, fs=fs,
+                    message,
+                    forwards_set,
+                    anon_func,
+                    media_dict,
+                    media_save_path,
+                    fs=fs,
                 )
                 f.write(preprocessed_m.to_json())
-                f.write('\n')
+                f.write("\n")
                 for comm in yield_comments(client, channel, message):
                     preprocessed_comm = preprocess(
-                        comm, forwards_set, anon_func, media_dict, media_save_path, fs=fs,
+                        comm,
+                        forwards_set,
+                        anon_func,
+                        media_dict,
+                        media_save_path,
+                        fs=fs,
                     )
                     preprocessed_comm.comments_msg_id = message_id
                     f.write(preprocessed_comm.to_json())
-                    f.write('\n')
+                    f.write("\n")
             else:
                 break
 
 
-def query_channel_messages(client: TelegramClient, channel: TypeInputChannel, f: TypeMessagesFilter, query: str = '') -> ChannelMessages:
+def query_channel_messages(
+    client: TelegramClient,
+    channel: TypeInputChannel,
+    f: TypeMessagesFilter,
+    query: str = "",
+) -> ChannelMessages:
     return client(SearchRequest(channel, query, f, None, None, 0, 0, 0, 0, 0, 0))
 
-def get_channel_messages_count(client: TelegramClient, channel: TypeInputChannel, f: TypeMessagesFilter, query: str = '') -> int:
+
+def get_channel_messages_count(
+    client: TelegramClient,
+    channel: TypeInputChannel,
+    f: TypeMessagesFilter,
+    query: str = "",
+) -> int:
     return query_channel_messages(client, channel, f, query=query).count
 
 
 def preprocess(
-    message: Message | MessageService, forwards_set: set, anon_func,
-    media_dict: MediaDictType, media_save_path: Path, fs: AbstractFileSystem = LOCAL_FS,
+    message: Message | MessageService,
+    forwards_set: set,
+    anon_func,
+    media_dict: MediaDictType,
+    media_save_path: Path,
+    fs: AbstractFileSystem = LOCAL_FS,
 ) -> ExtendedMessage | MessageService:
-    preproced_message = message # TODO: copy?
+    preproced_message = message  # TODO: copy?
     if isinstance(message, Message):
         preproced_message = ExtendedMessage.from_message(preproced_message)
         preproced_message = preprocess_entities(preproced_message, anon_func)
         media_dict = collegram.media.preprocess_from_message(
-            message, media_dict, media_save_path, fs=fs,
+            message,
+            media_dict,
+            media_save_path,
+            fs=fs,
         )
     preproced_message = anonymise_metadata(preproced_message, forwards_set, anon_func)
     return preproced_message
 
+
 def del_surrogate(text):
-    return text.encode('utf-16', 'surrogatepass').decode('utf-16', 'surrogatepass')
+    return text.encode("utf-16", "surrogatepass").decode("utf-16", "surrogatepass")
+
 
 def preprocess_entities(message: ExtendedMessage, anon_func) -> ExtendedMessage:
-    anon_message = message # TODO: copy?
+    anon_message = message  # TODO: copy?
     surr_text = add_surrogate(message.message)
 
     if message.entities is not None:
@@ -214,37 +267,44 @@ def preprocess_entities(message: ExtendedMessage, anon_func) -> ExtendedMessage:
             if isinstance(e, (MessageEntityMention, MessageEntityMentionName)):
                 # A MessageEntityMention starts with an "@", which we keep as is.
                 start = e_start + 1 * int(isinstance(e, MessageEntityMention))
-                anon_mention = anon_func(del_surrogate(surr_text[start: e_end]))
+                anon_mention = anon_func(del_surrogate(surr_text[start:e_end]))
                 anon_message.text_mentions.add(anon_mention)
                 anon_subs.append((start, e_end, anon_mention))
             elif isinstance(e, MessageEntityEmail):
-                email = del_surrogate(surr_text[e_start: e_end])
+                email = del_surrogate(surr_text[e_start:e_end])
                 # Keep the email format to be able to identify this as an email later on.
-                anon_email = '@'.join([anon_func(part) for part in email.split("@")])
+                anon_email = "@".join([anon_func(part) for part in email.split("@")])
                 anon_subs.append((e_start, e_end, anon_email))
             elif isinstance(e, MessageEntityUrl):
-                anon_message.text_urls.add(del_surrogate(surr_text[e_start: e_end]))
+                anon_message.text_urls.add(del_surrogate(surr_text[e_start:e_end]))
             elif isinstance(e, MessageEntityTextUrl):
                 anon_message.text_urls.add(e.url)
 
         if len(anon_subs) > 1:
             anon_message.text = del_surrogate(
-                ''.join([
-                    surr_text[anon_subs[i][1]: anon_subs[i+1][0]] + anon_subs[i+1][2]
-                    for i in range(len(anon_subs)-1)
-                ])
-                + surr_text[anon_subs[-1][1]:]
+                "".join(
+                    [
+                        surr_text[anon_subs[i][1] : anon_subs[i + 1][0]]
+                        + anon_subs[i + 1][2]
+                        for i in range(len(anon_subs) - 1)
+                    ]
+                )
+                + surr_text[anon_subs[-1][1] :]
             )
     return anon_message
 
 
-def anonymise_metadata(message: ExtendedMessage | MessageService, forwards_set: set, anon_func):
+def anonymise_metadata(
+    message: ExtendedMessage | MessageService, forwards_set: set, anon_func
+):
     message = anonymise_opt_peer(message, "peer_id", anon_func)
     message = anonymise_opt_peer(message, "from_id", anon_func)
 
     if isinstance(message, ExtendedMessage):
         message.post_author = anon_func(message.post_author)
-        message.reply_to = anonymise_opt_peer(message.reply_to, "reply_to_peer_id", anon_func)
+        message.reply_to = anonymise_opt_peer(
+            message.reply_to, "reply_to_peer_id", anon_func
+        )
 
         if message.replies is not None:
             message.replies.channel_id = anon_func(message.replies.channel_id)
@@ -254,18 +314,24 @@ def anonymise_metadata(message: ExtendedMessage | MessageService, forwards_set: 
                     r = anonymise_peer(r, anon_func)
 
         if message.fwd_from is not None:
-            fwd_from_channel_id = getattr(message.fwd_from.from_id, 'channel_id', None)
+            fwd_from_channel_id = getattr(message.fwd_from.from_id, "channel_id", None)
             if fwd_from_channel_id is not None:
                 forwards_set.add(fwd_from_channel_id)
-            message.fwd_from = anonymise_opt_peer(message.fwd_from, "from_id", anon_func)
-            message.fwd_from = anonymise_opt_peer(message.fwd_from, "saved_from_peer", anon_func)
+            message.fwd_from = anonymise_opt_peer(
+                message.fwd_from, "from_id", anon_func
+            )
+            message.fwd_from = anonymise_opt_peer(
+                message.fwd_from, "saved_from_peer", anon_func
+            )
             message.fwd_from.from_name = anon_func(message.fwd_from.from_name)
             message.fwd_from.post_author = anon_func(message.fwd_from.post_author)
 
     elif isinstance(message, MessageService):
         message.action = anonymise_opt_peer(message.action, "peer", anon_func)
         message.action = anonymise_opt_peer(message.action, "peer_id", anon_func)
-        if isinstance(message.action, (MessageActionChatAddUser, MessageActionChatCreate)):
+        if isinstance(
+            message.action, (MessageActionChatAddUser, MessageActionChatCreate)
+        ):
             message.action.users = [anon_func(uid) for uid in message.action.users]
         elif isinstance(message.action, MessageActionChatDeleteUser):
             message.action.user_id = anon_func(message.action.user_id)
@@ -276,7 +342,12 @@ def anonymise_metadata(message: ExtendedMessage | MessageService, forwards_set: 
         elif isinstance(message.action, MessageActionChatMigrateTo):
             message.action.channel_id = anon_func(message.action.channel_id)
 
-        actions_with_title = (MessageActionChannelCreate, MessageActionChannelMigrateFrom, MessageActionChatCreate, MessageActionChatEditTitle)
+        actions_with_title = (
+            MessageActionChannelCreate,
+            MessageActionChannelMigrateFrom,
+            MessageActionChatCreate,
+            MessageActionChatEditTitle,
+        )
         if isinstance(message.action, actions_with_title):
             message.action.title = anon_func(message.action.title)
             if isinstance(message.action, MessageActionChannelMigrateFrom):
@@ -286,9 +357,9 @@ def anonymise_metadata(message: ExtendedMessage | MessageService, forwards_set: 
 
 def anonymise_opt_peer(object, path_to_peer, anon_func):
     # TODO: fix for path with parts?
-    path_parts = path_to_peer.split('.')
+    path_parts = path_to_peer.split(".")
     peer_obj = getattr(object, path_parts[0], None)
-    for i in range(1, len(path_parts)-1):
+    for i in range(1, len(path_parts) - 1):
         if peer_obj is not None:
             peer_obj = getattr(peer_obj, path_parts[i], None)
 
@@ -310,14 +381,18 @@ def anonymise_peer(obj: TypePeer, anon_func):
 # First is self, so take from index 1 on.
 MESSAGE_INIT_ARGS = inspect.getfullargspec(Message).args[1:]
 
+
 class ExtendedMessage(Message):
     # Created this class because m.reply_msg_id did not match the commented-on message's
     # id, so need to save the info somehow.
 
     @classmethod
     def from_message(
-        cls, message: Message, comments_msg_id: int | None = None,
-        text_urls: set[str] | None = None, text_mentions: set[str] | None = None,
+        cls,
+        message: Message,
+        comments_msg_id: int | None = None,
+        text_urls: set[str] | None = None,
+        text_mentions: set[str] | None = None,
     ):
         instance = cls(*[getattr(message, a) for a in MESSAGE_INIT_ARGS])
         instance.comments_msg_id = comments_msg_id
@@ -328,8 +403,8 @@ class ExtendedMessage(Message):
     def to_dict(self):
         # Anything that is added here will be saved, as this is called by `to_json`
         d = super().to_dict()
-        d['comments_msg_id'] = self.comments_msg_id
+        d["comments_msg_id"] = self.comments_msg_id
         # Cast to list for JSON serialisation:
-        d['text_urls'] = list(self.text_urls)
-        d['text_mentions'] = list(self.text_mentions)
+        d["text_urls"] = list(self.text_urls)
+        d["text_mentions"] = list(self.text_mentions)
         return d

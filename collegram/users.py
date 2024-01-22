@@ -27,7 +27,11 @@ def get_channel_participants(client: TelegramClient, channel_username):
         try:
             participants = client(
                 GetParticipantsRequest(
-                    channel_username, ChannelParticipantsSearch(""), offset, limit, hash=0
+                    channel_username,
+                    ChannelParticipantsSearch(""),
+                    offset,
+                    limit,
+                    hash=0,
                 )
             )
         except ChatAdminRequiredError:
@@ -43,7 +47,9 @@ def get_channel_participants(client: TelegramClient, channel_username):
     return all_participants
 
 
-def get_channel_users(client: TelegramClient, channel: str | Channel, anon_func) -> list[User]:
+def get_channel_users(
+    client: TelegramClient, channel: str | Channel, anon_func
+) -> list[User]:
     """
     We're missing the bio here, can be obtained with GetFullUserRequest
     """
@@ -62,18 +68,32 @@ def get_channel_users(client: TelegramClient, channel: str | Channel, anon_func)
         users.append(p)
     return users
 
-CHANGED_USER_FIELDS = {'id': pl.Utf8}
+
+CHANGED_USER_FIELDS = {"id": pl.Utf8}
 DISCARDED_USER_FIELDS = (
-    '_', 'contact', 'mutual_contact', 'close_friend', 'first_name', 'last_name',
-    'username', 'usernames', 'phone', 'restriction_reason', 'photo', 'emoji_status',
-    'color', 'status',
+    "_",
+    "contact",
+    "mutual_contact",
+    "close_friend",
+    "first_name",
+    "last_name",
+    "username",
+    "usernames",
+    "phone",
+    "restriction_reason",
+    "photo",
+    "emoji_status",
+    "color",
+    "status",
 )
+
 
 def flatten_dict(p: dict):
     flat_p = p.copy()
     for f in DISCARDED_USER_FIELDS:
         flat_p.pop(f)
     return flat_p
+
 
 def get_pl_schema():
     user_schema = {}
