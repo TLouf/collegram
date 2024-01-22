@@ -157,10 +157,9 @@ if __name__ == '__main__':
                         _, full_chat_d = collegram.channels.get_full(
                             client, channels_dir, anonymiser.anonymise, channel_id=i,
                         )
-                        prio = collegram.channels.get_explo_priority(
+                        forwarded_chans[i] = collegram.channels.get_explo_priority(
                             full_chat_d, anonymiser, prio, lang_detector, lang_priorities, private_chans_priority
                         )
-                        forwarded_chans[i] = prio
 
             # Make message queries only when strictly necessary. If the channel was seen
             # in new messages, no need to get it through `chans_fwd_msg_to_query`.
