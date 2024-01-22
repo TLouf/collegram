@@ -5,8 +5,12 @@ from typing import TYPE_CHECKING, Any, Union
 
 import msgspec
 
+from collegram.utils import LOCAL_FS
+
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from fsspec import AbstractFileSystem
 
 
 RELEVANT_MEDIA_TYPES = {
@@ -106,14 +110,15 @@ MessageJSONDecodeType = Union[Message, MessageService]
 MESSAGE_JSON_DECODER = msgspec.json.Decoder(type=MessageJSONDecodeType)
 FAST_FORWARD_DECODER = msgspec.json.Decoder(type=MaybeForwardedMessage)
 
-def read_messages_json(path: Path, decoder: msgspec.json.Decoder = MESSAGE_JSON_DECODER):
-    return decoder.decode_lines(path.read_text())
+def read_messages_json(path: str | Path, fs: AbstractFileSystem = LOCAL_FS, decoder: msgspec.json.Decoder = MESSAGE_JSON_DECODER):
+    with fs.open(str(path), 'r') as f:
+        return decoder.decode_lines(f.read())
 
-def read_message(message: str, decoder: msgspec.json.Decoder = MESSAGE_JSON_DECODER):
+def read_message(message: bytes | str, decoder: msgspec.json.Decoder = MESSAGE_JSON_DECODER):
     return decoder.decode(message)
 
-def yield_message(fpath: Path, decoder: msgspec.json.Decoder = MESSAGE_JSON_DECODER):
-    with open(fpath, "r") as f:
+def yield_message(fpath: str | Path, fs: AbstractFileSystem = LOCAL_FS, decoder: msgspec.json.Decoder = MESSAGE_JSON_DECODER):
+    with fs.open(str(fpath), "r") as f:
         for line in f:
             if line:
                 yield read_message(line, decoder)

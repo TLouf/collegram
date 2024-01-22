@@ -40,10 +40,12 @@ from telethon.tl.types import (
 from telethon.tl.types.messages import ChannelMessages
 
 import collegram.media
+from collegram.utils import LOCAL_FS
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from fsspec import AbstractFileSystem
     from telethon import TelegramClient
     from telethon.tl.types import (
         Channel,
@@ -75,6 +77,7 @@ def get_channel_messages(
     media_dict: MediaDictType, media_save_path: Path,
 ):
     '''
+    DEPRECATED
     dt_to exclusive
     '''
     message_id = 0
@@ -146,24 +149,28 @@ def save_channel_messages(
     dt_from: datetime.datetime, dt_to: datetime.datetime,
     forwards_set: set, anon_func, messages_save_path,
     media_dict: MediaDictType, media_save_path: Path,
-    offset_id=0,
+    offset_id=0, fs: AbstractFileSystem = LOCAL_FS,
 ):
     '''
     dt_to exclusive
     '''
     # Telethon docs are misleading, `offset_date` is in fact a datetime.
-    with open(messages_save_path, "a") as f:
+    with fs.open(messages_save_path, "a") as f:
         for message in client.iter_messages(entity=channel, offset_date=dt_to, offset_id=offset_id):
             message_id = message.id
             # Take messages in until we've gone further than `date_until` in the past
             # (works because HistoryRequest gets messages in reverse chronological order
             # by default)
             if message.date >= dt_from:
-                preprocessed_m = preprocess(message, forwards_set, anon_func, media_dict, media_save_path)
+                preprocessed_m = preprocess(
+                    message, forwards_set, anon_func, media_dict, media_save_path, fs=fs,
+                )
                 f.write(preprocessed_m.to_json())
                 f.write('\n')
                 for comm in yield_comments(client, channel, message):
-                    preprocessed_comm = preprocess(comm, forwards_set, anon_func, media_dict, media_save_path)
+                    preprocessed_comm = preprocess(
+                        comm, forwards_set, anon_func, media_dict, media_save_path, fs=fs,
+                    )
                     preprocessed_comm.comments_msg_id = message_id
                     f.write(preprocessed_comm.to_json())
                     f.write('\n')
@@ -179,13 +186,16 @@ def get_channel_messages_count(client: TelegramClient, channel: TypeInputChannel
 
 
 def preprocess(
-    message: Message | MessageService, forwards_set: set, anon_func, media_dict: MediaDictType, media_save_path: Path
+    message: Message | MessageService, forwards_set: set, anon_func,
+    media_dict: MediaDictType, media_save_path: Path, fs: AbstractFileSystem = LOCAL_FS,
 ) -> ExtendedMessage | MessageService:
     preproced_message = message # TODO: copy?
     if isinstance(message, Message):
         preproced_message = ExtendedMessage.from_message(preproced_message)
         preproced_message = preprocess_entities(preproced_message, anon_func)
-        media_dict = collegram.media.preprocess_from_message(message, media_dict, media_save_path)
+        media_dict = collegram.media.preprocess_from_message(
+            message, media_dict, media_save_path, fs=fs,
+        )
     preproced_message = anonymise_metadata(preproced_message, forwards_set, anon_func)
     return preproced_message
 

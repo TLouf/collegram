@@ -6,9 +6,15 @@ import json
 import os
 from collections import defaultdict
 from queue import PriorityQueue
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+import fsspec
 import polars as pl
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+LOCAL_FS = fsspec.filesystem('local')
 
 
 class UniquePriorityQueue(PriorityQueue):
@@ -59,32 +65,38 @@ class HMAC_anonymiser:
                     self.anon_map[data_str] = data
         return data
 
-    def update_from_disk(self, save_path):
-        if save_path.exists():
-            self.anon_map.update(json.loads(save_path.read_text()))
+    def update_from_disk(self, save_path, fs: fsspec.AbstractFileSystem = LOCAL_FS):
+        save_path = str(save_path)
+        if fs.exists(save_path):
+            with fs.open(save_path, 'r') as f:
+                d = json.load(f)
+            self.anon_map.update(d)
 
-    def save_map(self, save_path):
-        save_path.parent.mkdir(exist_ok=True, parents=True)
-        save_path.write_text(json.dumps(self.anon_map))
+    def save_map(self, save_path: Path, fs: fsspec.AbstractFileSystem = LOCAL_FS):
+        parent = str(save_path.parent)
+        fs.mkdirs(parent, exist_ok=True)
+        with fs.open(str(save_path), 'w') as f:
+            json.dump(self.anon_map, f)
 
     @property
     def inverse_anon_map(self) -> dict[str, str]:
         return {value: key for key, value in self.anon_map.items()}
 
-def read_nth_to_last_line(path, n=1):
+
+def read_nth_to_last_line(path, fs: fsspec.AbstractFileSystem = LOCAL_FS, n=1):
     """Returns the nth before last line of a file (n=1 gives last line)
 
     https://stackoverflow.com/questions/46258499/how-to-read-the-last-line-of-a-file-in-python
     """
     num_newlines = 0
-    with open(path, 'rb') as f:
+    with fs.open(str(path), 'rb') as f:
         try:
             f.seek(-2, os.SEEK_END)
             while num_newlines < n:
                 f.seek(-2, os.SEEK_CUR)
                 if f.read(1) == b'\n':
                     num_newlines += 1
-        except OSError:
+        except (OSError, ValueError):
             # catch OSError in case of a one line file
             f.seek(0)
         last_line = f.readline().decode()

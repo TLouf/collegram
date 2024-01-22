@@ -13,6 +13,7 @@ dependencies:
     # local package
     - -e .
     # external requirements
+    - fsspec>=2023.12.2
     - python-dotenv>=0.5.1
     - tqdm
     - telethon>=1.33.1

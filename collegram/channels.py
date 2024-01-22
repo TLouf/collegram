@@ -26,11 +26,12 @@ from telethon.tl.types import (
 import collegram.json
 import collegram.messages
 import collegram.text
-from collegram.utils import PY_PL_DTYPES_MAP
+from collegram.utils import LOCAL_FS, PY_PL_DTYPES_MAP
 
 if typing.TYPE_CHECKING:
     from pathlib import Path
 
+    from fsspec import AbstractFileSystem
     from lingua import LanguageDetector
     from telethon import TelegramClient
     from telethon.tl.types import (
@@ -101,7 +102,7 @@ def get(
 def get_full(
     client: TelegramClient, channels_dir: Path, anon_func,
     channel: Channel | PeerChannel | None = None, channel_id: int | str | None = None,
-    access_hash: int | None = None, force_query=False
+    access_hash: int | None = None, force_query=False, fs: AbstractFileSystem = LOCAL_FS,
 ) -> tuple[ChatFull | None, dict]:
     full_chat = None
     if channel_id is None and channel is None:
@@ -113,8 +114,8 @@ def get_full(
     # always force a query for the channels in the initial seed, which are the only ones
     # we refer to with their usernames at first. Anyway, it just implies a request more.
     anon_id = anon_func(channel_id)
-    save_path = channels_dir / f"{anon_id}.json"
-    full_chat_d = json.loads(save_path.read_text()) if save_path.exists() else {}
+    save_path = str(channels_dir / f"{anon_id}.json")
+    full_chat_d = json.loads(fs.open(save_path, 'r').read()) if fs.exists(save_path) else {}
     if full_chat_d:
         chat = get_matching_chat_from_full(full_chat_d)
         access_hash = chat['access_hash']
@@ -132,8 +133,8 @@ def get_full(
                 full_chat = client(GetFullChannelRequest(channel=input_chan))
                 full_chat_d = get_full_anon_dict(full_chat, anon_func)
                 anon_id = full_chat_d['full_chat']['id']
-                p = channels_dir / f"{anon_id}.json"
-                p.write_text(json.dumps(full_chat_d))
+                p = str(channels_dir / f"{anon_id}.json")
+                fs.open(p, 'w').write(json.dumps(full_chat_d))
             except ChannelPrivateError:
                 logger.debug(f"found private channel {channel_id}")
             except ValueError:
@@ -170,17 +171,20 @@ def get_matching_chat_from_full(full_chat: ChatFull | dict) -> Channel | dict:
     return chat
 
 
-def recover_fwd_from_msgs(messages_path: Path) -> dict[int, dict]:
+def recover_fwd_from_msgs(
+    messages_path: Path, fs: AbstractFileSystem = LOCAL_FS,
+) -> dict[int, dict]:
     chans_fwd_msg = {}
-    if messages_path.is_dir():
-        fpaths_iter = messages_path.glob('*.jsonl')
-    elif messages_path.exists():
+    messages_path = str(messages_path)
+    if fs.isdir(messages_path):
+        fpaths_iter = fs.glob(f"{messages_path}/*.jsonl")
+    elif fs.exists(messages_path):
         fpaths_iter = [messages_path]
     else:
         fpaths_iter = []
 
     for p in fpaths_iter:
-        for m in collegram.json.yield_message(p, collegram.json.FAST_FORWARD_DECODER):
+        for m in collegram.json.yield_message(p, fs, collegram.json.FAST_FORWARD_DECODER):
             if m.fwd_from is not None:
                 from_chan_id = getattr(m.fwd_from.from_id, 'channel_id', None)
                 if from_chan_id is not None:
@@ -194,7 +198,7 @@ def fwd_from_msg_ids(
     client: TelegramClient, channels_dir: Path, chat: Channel,
     chans_fwd_msg: dict[int, dict], anonymiser, parent_priority,
     lang_detector: LanguageDetector, lang_priorities: dict,
-    private_chans_priority: int,
+    private_chans_priority: int, fs: AbstractFileSystem = LOCAL_FS,
 ):
     forwarded_channels = {}
     for chan_id, m_d in chans_fwd_msg.items():
@@ -203,7 +207,7 @@ def fwd_from_msg_ids(
         fwd_from = getattr(m, "fwd_from", None)
         if fwd_from is not None:
             _, fwd_full_chan_d = get_full(
-                client, channels_dir, anonymiser.anonymise, channel=m.fwd_from.from_id,
+                client, channels_dir, anonymiser.anonymise, channel=m.fwd_from.from_id, fs=fs
             )
         elif m is not None:
             logger.error("message supposed to have been forwarded is not")
