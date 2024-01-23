@@ -37,11 +37,19 @@ if __name__ == '__main__':
         os.environ['API_ID'], os.environ['API_HASH'], os.environ["PHONE_NUMBER"],
         session=str(paths.proj / 'anon.session'), flood_sleep_threshold=24*3600,
     )
-    channels = (paths.interim_data / "channels.txt").read_text().strip().split("\n")
-    logger.info(f"{list(channels)}")
+
+    channels_first_seed = json.loads((paths.interim_data / "channels_first_seed.json").read_text())
     channels_queue = collegram.utils.UniquePriorityQueue()
-    for c in channels:
-        channels_queue.put((0, c))
+    for c_id, c_hash in channels_first_seed.items():
+        anonymiser = collegram.utils.HMAC_anonymiser()
+        _, full_chat_d = collegram.channels.get_full(
+            client, channels_dir, anonymiser.anonymise, channel_id=c_id, access_hash=c_hash,
+        )
+        prio = collegram.channels.get_explo_priority(
+            full_chat_d, anonymiser, 0, lang_detector, lang_priorities, private_chans_priority
+        )
+        channels_queue.put((prio, c_id))
+
     processed_channels = set()
     nr_remaining_channels = channels_queue.qsize()
     nr_processed_channels = 0
