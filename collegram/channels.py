@@ -61,11 +61,17 @@ def search_from_tgdb(client: TelegramClient, query):
             raise RuntimeError(search_res.message)
         else:
             time.sleep(10)
-    return results
+
+    id_access_hash_map = {}
+    for username in results:
+        entity = get_input_peer(client, username)
+        if hasattr(entity, 'channel_id'):
+            id_access_hash_map[entity.channel_id] = entity.access_hash
+    return id_access_hash_map
 
 
 def search_from_api(client: TelegramClient, query, limit=100):
-    return [c.username for c in client(SearchRequest(q=query, limit=limit)).chats]
+    return {c.id: c.access_hash for c in client(SearchRequest(q=query, limit=limit)).chats}
 
 
 @typing.overload
