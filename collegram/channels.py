@@ -92,6 +92,9 @@ def get_input_peer(
 def get_input_peer(
     client: TelegramClient, channel_id: str | int, access_hash: int | None = None
 ):
+    if isinstance(channel_id, str) and channel_id.isdigit():
+        channel_id = int(channel_id)
+
     if isinstance(channel_id, str):
         try:
             # Using `get_input_entity` instead of just passing the str through to avoid
