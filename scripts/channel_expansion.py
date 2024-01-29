@@ -47,6 +47,9 @@ if __name__ == '__main__':
         )
         if full_chat_d == {}:
             continue
+        anon_map_save_path = paths.raw_data / 'anon_maps' / f"{full_chat_d['full_chat']['id']}.json"
+        anonymiser.update_from_disk(anon_map_save_path)
+        anonymiser.save_map(anon_map_save_path)
         prio = collegram.channels.get_explo_priority(
             full_chat_d, anonymiser, 0, lang_detector, lang_priorities, private_chans_priority
         )
