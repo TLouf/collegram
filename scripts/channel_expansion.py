@@ -50,16 +50,13 @@ if __name__ == '__main__':
         prio = collegram.channels.get_explo_priority(
             full_chat_d, anonymiser, 0, lang_detector, lang_priorities, private_chans_priority
         )
-        channels_queue.put((prio, c_id))
+        channels_queue.put((prio, int(c_id)))
 
     processed_channels = set()
     nr_remaining_channels = channels_queue.qsize()
     nr_processed_channels = 0
     while not channels_queue.empty():
-        # The `channel_identifier` here can refer to a specific chat of a channel, in
-        # which case it can only be an int, or to a whole channel, in which case it can
-        # be a str or an int. So first we get the encompassing full channel, to then
-        # read all of its chats.
+        # First we get the encompassing full channel, to then read all of its chats.
         prio, channel_identifier = channels_queue.get()
         if isinstance(channel_identifier, str) and channel_identifier.isdigit():
             channel_identifier = int(channel_identifier)
@@ -225,6 +222,6 @@ if __name__ == '__main__':
             nr_processed_channels += 1
 
         for c in set(new_channels.keys()).difference(processed_channels):
-            channels_queue.put((new_channels[c], str(c)))
+            channels_queue.put((new_channels[c], c))
         nr_remaining_channels = channels_queue.qsize()
         logger.info(f"{nr_processed_channels} channels already processed, {nr_remaining_channels} to go")
