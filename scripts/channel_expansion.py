@@ -129,9 +129,9 @@ if __name__ == '__main__':
                 _, full_chat_d = collegram.channels.get_full(
                     client, channels_dir, anonymiser.anonymise, channel=c,
                 )
-                # Since recommended is a strong signal of homophily (at least in user
-                # base), keep the parent's priority.
-                recommended_chans[c.id] = prio
+                recommended_chans[c.id] = collegram.channels.get_explo_priority(
+                    full_chat_d, anonymiser, prio, lang_detector, lang_priorities, private_chans_priority
+                )
                 channel_save_data['recommended_channels'].append(anonymiser.anonymise(c.id))
 
             for content_type, f in collegram.messages.MESSAGE_CONTENT_TYPE_MAP.items():
