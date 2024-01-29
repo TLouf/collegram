@@ -45,6 +45,8 @@ if __name__ == '__main__':
         _, full_chat_d = collegram.channels.get_full(
             client, channels_dir, anonymiser.anonymise, channel_id=c_id, access_hash=c_hash,
         )
+        if full_chat_d == {}:
+            continue
         prio = collegram.channels.get_explo_priority(
             full_chat_d, anonymiser, 0, lang_detector, lang_priorities, private_chans_priority
         )
@@ -71,8 +73,7 @@ if __name__ == '__main__':
             continue
 
         if listed_channel_full is None:
-            breakpoint()
-            logger.error("NOT_HANDLED")
+            logger.error("listed channel was deleted")
             continue
 
         new_channels = {}
