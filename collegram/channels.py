@@ -171,7 +171,7 @@ def get_full(
         elif input_chan:
             try:
                 full_chat = client(GetFullChannelRequest(channel=input_chan))
-                full_chat_d = get_full_anon_dict(full_chat, anon_func)
+                full_chat_d = {**full_chat_d, **get_full_anon_dict(full_chat, anon_func)}
                 anon_id = full_chat_d["full_chat"]["id"]
                 p = str(channels_dir / f"{anon_id}.json")
                 fs.open(p, "w").write(json.dumps(full_chat_d))
