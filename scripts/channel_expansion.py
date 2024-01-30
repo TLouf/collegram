@@ -144,21 +144,21 @@ if __name__ == '__main__':
             channel_save_path.write_text(json.dumps(channel_save_data))
 
             # Save messages, don't get to avoid overflowing memory.
-            chat_dir_path = paths.raw_data / 'messages' / f"{anon_channel_id}"
-            chat_dir_path.mkdir(exist_ok=True, parents=True)
+            msgs_dir_path = paths.raw_data / 'messages' / f"{anon_channel_id}"
+            msgs_dir_path.mkdir(exist_ok=True, parents=True)
             media_save_path = paths.raw_data / 'media'
 
-            logger.info(f"reading/saving messages from/to {chat_dir_path}")
+            logger.info(f"reading/saving messages from/to {msgs_dir_path}")
             dt_from = chat.date
             dt_from = dt_from.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             dt_bin_edges = pl.datetime_range(dt_from, global_dt_to, interval='1mo', eager=True, time_zone='UTC')
-            fwd_chans_from_saved_msg = collegram.channels.recover_fwd_from_msgs(chat_dir_path)
+            fwd_chans_from_saved_msg = collegram.channels.recover_fwd_from_msgs(msgs_dir_path)
 
             forwarded_chans = {}
-            existing_files = list(chat_dir_path.iterdir())
+            existing_files = list(msgs_dir_path.iterdir())
             for dt_from, dt_to in zip(dt_bin_edges[:-1], dt_bin_edges[1:]):
                 chunk_fwds = set()
-                messages_save_path = chat_dir_path / f"{dt_from.date()}_to_{dt_to.date()}.jsonl"
+                messages_save_path = msgs_dir_path / f"{dt_from.date()}_to_{dt_to.date()}.jsonl"
                 is_last_saved_period = len(existing_files) > 0 and messages_save_path == existing_files[0]
                 if not messages_save_path.exists() or is_last_saved_period:
                     offset_id = 0
