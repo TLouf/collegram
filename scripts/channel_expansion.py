@@ -79,8 +79,9 @@ if __name__ == '__main__':
         new_channels = {}
         for chat in listed_channel_full.chats:
             channel_id = chat.id
-            anonymiser = collegram.utils.HMAC_anonymiser()
             anon_channel_id = anonymiser.anonymise(channel_id)
+            anon_map_save_path = paths.raw_data / 'anon_maps' / f"{anon_channel_id}.json"
+            anonymiser = collegram.utils.HMAC_anonymiser(save_path=anon_map_save_path)
 
             if channel_id == listed_channel_full.full_chat.id:
                 channel_full = listed_channel_full
@@ -105,9 +106,6 @@ if __name__ == '__main__':
                 logger.info(f'**************** {chat.username} ****************')
             logger.info(f'---------------- {channel_id} ----------------')
             logger.info(f"priority {prio}, {channel_full.full_chat.participants_count} participants, {channel_full.full_chat.about}")
-
-            anon_map_save_path = paths.raw_data / 'anon_maps' / f"{anon_channel_id}.json"
-            anonymiser.update_from_disk(anon_map_save_path)
 
             channel_save_path = channels_dir / f"{anon_channel_id}.json"
             channel_save_path.parent.mkdir(exist_ok=True, parents=True)
@@ -139,7 +137,7 @@ if __name__ == '__main__':
                 channel_save_data[f"{content_type}_count"] = count
 
             channel_save_data['forwards_from'] = channel_saved_data.get('forwards_from', [])
-            anonymiser.save_map(anon_map_save_path)
+            anonymiser.save_map()
             channel_save_data['last_queried_at'] = datetime.datetime.now(datetime.UTC).isoformat()
             channel_save_path.write_text(json.dumps(channel_save_data))
 
@@ -176,7 +174,7 @@ if __name__ == '__main__':
                         messages_save_path, all_media_dict, media_save_path, offset_id=offset_id
                     )
                     # collegram.media.download_from_dict(client, all_media_dict, paths.raw_data / 'media', only_photos=True)
-                    anonymiser.save_map(anon_map_save_path)
+                    anonymiser.save_map()
                     new_fwds = chunk_fwds.difference(forwarded_chans.keys())
                     for i in new_fwds:
                         _, full_chat_d = collegram.channels.get_full(
@@ -215,7 +213,7 @@ if __name__ == '__main__':
                 anonymiser.anonymise(c, safe=True)
                 for c in set(forwarded_chans.keys()).union(id_map_fwd_chans.keys())
             ]
-            anonymiser.save_map(anon_map_save_path)
+            anonymiser.save_map()
             channel_save_path.write_text(json.dumps(channel_save_data))
 
             # What new channels should we explore?

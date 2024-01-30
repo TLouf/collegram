@@ -39,11 +39,15 @@ class HMAC_anonymiser:
         key: str | None = None,
         key_env_var_name: str = "HMAC_KEY",
         anon_map: dict | None = None,
+        save_path: Path | None = None,
     ):
         if key is None:
             key = os.environ[key_env_var_name]
         self.key = bytes.fromhex(key)
         self.anon_map: dict[str, str] = {} if anon_map is None else anon_map
+        self.save_path = save_path
+        if save_path is not None:
+            self.update_from_disk()
 
     def anonymise(self, data: int | str | None, safe: bool = False) -> str | None:
         """Anonymise the provided data.
@@ -72,14 +76,15 @@ class HMAC_anonymiser:
                     self.anon_map[data_str] = data
         return data
 
-    def update_from_disk(self, save_path, fs: fsspec.AbstractFileSystem = LOCAL_FS):
-        save_path = str(save_path)
+    def update_from_disk(self, save_path: Path | None = None, fs: fsspec.AbstractFileSystem = LOCAL_FS):
+        save_path = str(save_path if save_path is not None else self.save_path)
         if fs.exists(save_path):
             with fs.open(save_path, "r") as f:
                 d = json.load(f)
             self.anon_map.update(d)
 
-    def save_map(self, save_path: Path, fs: fsspec.AbstractFileSystem = LOCAL_FS):
+    def save_map(self, save_path: Path | None = None, fs: fsspec.AbstractFileSystem = LOCAL_FS):
+        save_path = save_path if save_path is not None else self.save_path
         parent = str(save_path.parent)
         fs.mkdirs(parent, exist_ok=True)
         with fs.open(str(save_path), "w") as f:
