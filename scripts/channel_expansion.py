@@ -61,6 +61,12 @@ if __name__ == '__main__':
     while not channels_queue.empty():
         # First we get the encompassing full channel, to then read all of its chats.
         prio, channel_identifier = channels_queue.get()
+        get_prio_kwargs = {
+            'prio': prio,
+            'lang_detector': lang_detector,
+            'lang_priorities': lang_priorities,
+            'private_chans_priority': private_chans_priority,
+        }
         if isinstance(channel_identifier, str) and channel_identifier.isdigit():
             channel_identifier = int(channel_identifier)
         anonymiser = collegram.utils.HMAC_anonymiser()
@@ -107,39 +113,12 @@ if __name__ == '__main__':
             logger.info(f'---------------- {channel_id} ----------------')
             logger.info(f"priority {prio}, {channel_full.full_chat.participants_count} participants, {channel_full.full_chat.about}")
 
-            channel_save_path = channels_dir / f"{anon_channel_id}.json"
-            channel_save_path.parent.mkdir(exist_ok=True, parents=True)
-
-            users_list = collegram.users.get_channel_users(
-                client, chat, anonymiser.anonymise
-            ) if channel_full.full_chat.can_view_participants else []
-
-            # Might seem redundant to save before and after getting messages, but this
-            # way, if the connection crashes this info will still have been saved.
-            channel_save_data = collegram.channels.get_full_anon_dict(
-                channel_full, anonymiser.anonymise
-            )
-            channel_save_data['participants'] =  [json.loads(u.to_json()) for u in users_list]
-
             recommended_chans = {}
-            channel_save_data['recommended_channels'] = []
-            for c in collegram.channels.get_recommended(client, chat):
-                _, full_chat_d = collegram.channels.get_full(
-                    client, channels_dir, anonymiser.anonymise, channel=c,
-                )
-                recommended_chans[c.id] = collegram.channels.get_explo_priority(
-                    full_chat_d, anonymiser, prio, lang_detector, lang_priorities, private_chans_priority
-                )
-                channel_save_data['recommended_channels'].append(anonymiser.anonymise(c.id))
-
-            for content_type, f in collegram.messages.MESSAGE_CONTENT_TYPE_MAP.items():
-                count = collegram.messages.get_channel_messages_count(client, chat, f)
-                channel_save_data[f"{content_type}_count"] = count
-
-            channel_save_data['forwards_from'] = channel_saved_data.get('forwards_from', [])
-            anonymiser.save_map()
-            channel_save_data['last_queried_at'] = datetime.datetime.now(datetime.UTC).isoformat()
-            channel_save_path.write_text(json.dumps(channel_save_data))
+            channel_save_data = collegram.channels.get_extended_save_data(
+                client, channel_full, channel_saved_data, anonymiser, channels_dir,
+                recommended_chans, **get_prio_kwargs,
+            )
+            collegram.channels.save(channel_save_data, channels_dir)
 
             # Save messages, don't get to avoid overflowing memory.
             msgs_dir_path = paths.raw_data / 'messages' / f"{anon_channel_id}"
@@ -181,7 +160,7 @@ if __name__ == '__main__':
                             client, channels_dir, anonymiser.anonymise, channel_id=i,
                         )
                         forwarded_chans[i] = collegram.channels.get_explo_priority(
-                            full_chat_d, anonymiser, prio, lang_detector, lang_priorities, private_chans_priority
+                            full_chat_d, anonymiser, **get_prio_kwargs,
                         )
 
             # Make message queries only when strictly necessary. If the channel was seen
@@ -206,7 +185,7 @@ if __name__ == '__main__':
 
             unseen_fwd_chans_from_saved_msgs = collegram.channels.fwd_from_msg_ids(
                 client, channels_dir, chat, chans_fwd_msg_to_query, anonymiser,
-                prio, lang_detector, lang_priorities, private_chans_priority,
+                **get_prio_kwargs,
             )
 
             channel_save_data['forwards_from'] = [
@@ -214,7 +193,7 @@ if __name__ == '__main__':
                 for c in set(forwarded_chans.keys()).union(id_map_fwd_chans.keys())
             ]
             anonymiser.save_map()
-            channel_save_path.write_text(json.dumps(channel_save_data))
+            collegram.channels.save(channel_save_data, channels_dir)
 
             # What new channels should we explore?
             new_channels = {**new_channels, **forwarded_chans, **unseen_fwd_chans_from_saved_msgs, **recommended_chans}

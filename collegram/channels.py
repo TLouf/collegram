@@ -26,6 +26,7 @@ from telethon.tl.types import (
 import collegram.json
 import collegram.messages
 import collegram.text
+import collegram.users
 from collegram.utils import LOCAL_FS, PY_PL_DTYPES_MAP
 
 if typing.TYPE_CHECKING:
@@ -360,6 +361,57 @@ def get_explo_priority(
     else:
         prio = private_chans_priority
     return prio
+
+
+def get_extended_save_data(
+    client: TelegramClient,
+    channel_full: ChatFull,
+    channel_saved_data: dict,
+    anonymiser,
+    channels_dir: Path,
+    recommended_chans_prios: dict | None,
+    **explo_prio_kwargs,
+):
+    chat = get_matching_chat_from_full(channel_full)
+
+    users_list = collegram.users.get_channel_users(
+        client, chat, anonymiser.anonymise
+    ) if channel_full.full_chat.can_view_participants else []
+
+    # Might seem redundant to save before and after getting messages, but this
+    # way, if the connection crashes this info will still have been saved.
+    channel_save_data = get_full_anon_dict(
+        channel_full, anonymiser.anonymise
+    )
+    channel_save_data['participants'] =  [json.loads(u.to_json()) for u in users_list]
+
+    channel_save_data['recommended_channels'] = []
+    for c in get_recommended(client, chat):
+        _, full_chat_d = get_full(
+            client, channels_dir, anonymiser.anonymise, channel=c,
+        )
+        if recommended_chans_prios is not None:
+            recommended_chans_prios[c.id] = get_explo_priority(
+                full_chat_d, anonymiser, **explo_prio_kwargs
+            )
+        channel_save_data['recommended_channels'].append(anonymiser.anonymise(c.id))
+
+    for content_type, f in collegram.messages.MESSAGE_CONTENT_TYPE_MAP.items():
+        count = collegram.messages.get_channel_messages_count(client, chat, f)
+        channel_save_data[f"{content_type}_count"] = count
+
+    channel_save_data['forwards_from'] = channel_saved_data.get('forwards_from', [])
+    anonymiser.save_map()
+    channel_save_data['last_queried_at'] = datetime.datetime.now(datetime.UTC).isoformat()
+    return channel_save_data
+
+
+def save(chan_data: dict, channels_dir: Path, fs: AbstractFileSystem = LOCAL_FS):
+    anon_id = chan_data['full_chat']['id']
+    channel_save_path = channels_dir / f"{anon_id}.json"
+    fs.mkdirs(str(channel_save_path.parent), exist_ok=True)
+    with fs.open(str(channel_save_path), "w") as f:
+        json.dump(chan_data, f)
 
 
 DISCARDED_CHAN_FULL_FIELDS = (
