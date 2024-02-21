@@ -62,7 +62,7 @@ if __name__ == '__main__':
         # First we get the encompassing full channel, to then read all of its chats.
         prio, channel_identifier = channels_queue.get()
         get_prio_kwargs = {
-            'prio': prio,
+            'parent_priority': prio,
             'lang_detector': lang_detector,
             'lang_priorities': lang_priorities,
             'private_chans_priority': private_chans_priority,

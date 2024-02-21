@@ -342,7 +342,7 @@ def get_full_anon_dict(full_chat: ChatFull, anon_func, safe=True):
 def get_explo_priority(
     fwd_full_chan_d: dict,
     anonymiser,
-    parent_prio: int,
+    parent_priority: int,
     lang_detector: LanguageDetector,
     lang_priorities: dict,
     private_chans_priority: int,
@@ -357,7 +357,7 @@ def get_explo_priority(
         # lang_prio is both increment and multiplicative factor, thus if some language has
         # prio value N times superior, after exploring N of other language, it'l' be this
         # language's turn.
-        prio = lang_prio * parent_prio + lang_prio
+        prio = lang_prio * parent_priority + lang_prio
     else:
         prio = private_chans_priority
     return prio
