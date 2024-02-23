@@ -1,13 +1,23 @@
-collegram
-==============================
+# collegram
 
-A short description of the project.
+A Python package and associated scripts to collect, anonymise and preprocess Telegram
+data.
 
-Project Organization
-------------
+
+## Collection flow
+
+In very brief:
+- get a first seed of channels by running `scripts/chan_keyword_search.py`
+- perform a snowballing exploration of channels using the similar channels recommended
+  by Telegram and the ones forwarded in already found ones, by running
+  `scripts/channel_expansion.py`.
+
+See diagrams in `reports/` for more info.
+
+
+## Project Organization
 
     ├── LICENSE
-    ├── Makefile           <- Makefile with commands like `make data` or `make train`
     ├── README.md          <- The top-level README for developers using this project.
     ├── data
     │   ├── external       <- Data from third party sources.
@@ -17,28 +27,17 @@ Project Organization
     │
     ├── scripts            <- Scripts to send to a cluster e.g.
     │
-    ├── notebooks          <- Jupyter notebooks. Naming convention is a number (for ordering),
-    │                         the creator's initials, and a short `-` delimited description, e.g.
-    │                         `1.0-jqp-initial-data-exploration`.
+    ├── notebooks          <- Jupyter notebooks.
     │
     ├── references         <- Data dictionaries, manuals, and all other explanatory materials.
     │
     ├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc.
     │   └── figures        <- Generated graphics and figures to be used in reporting
     │
-    ├── environment.yml   <- The conda environment file for reproducing the analysis environment, e.g.
+    ├── environment.yml    <- The conda environment file for reproducing the analysis environment, e.g.
     │                         generated with `conda env export -f environment.yml`
     |
-    ├── collegram                <- Source code for use in this project.
-    │   ├── __init__.py    <- Makes the project a Python module
-    │   │
-    │   ├── data           <- Data processing code
-    │   │   └── make_dataset.py
-    │   │
-    │   ├── utils       <- Code for any utilities
-    │   │
-    │   └── visualization  <- Code to create exploratory and results oriented visualizations
-    │       └── visualize.py
+    ├── collegram          <- Source code for use in this project.
     |
     └── setup.py           <- makes project pip installable (pip install -e .) so collegram can be imported
 
