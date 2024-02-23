@@ -1,8 +1,0 @@
-telethon
-ipykernel
-tqdm
-python-dotenv
--e .
-# For faster media DL:
-cryptg
-polars
