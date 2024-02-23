@@ -73,7 +73,7 @@ MESSAGE_CONTENT_TYPE_MAP = {
 
 def get_channel_messages(
     client: TelegramClient,
-    channel: str | Channel,
+    channel: TypeInputChannel,
     dt_from: datetime.datetime,
     dt_to: datetime.datetime,
     forwards_set: set,
@@ -137,7 +137,7 @@ def get_channel_messages(
 
 def get_comments_iter(
     client: TelegramClient,
-    channel: str | Channel,
+    channel: TypeInputChannel,
     message_id: int,
 ) -> Iterable[Message]:
     try:
@@ -150,7 +150,7 @@ def get_comments_iter(
 
 def yield_comments(
     client: TelegramClient,
-    channel: str | Channel,
+    channel: TypeInputChannel,
     message: Message,
 ):
     replies = getattr(message, "replies", None)
@@ -161,7 +161,7 @@ def yield_comments(
 
 def save_channel_messages(
     client: TelegramClient,
-    channel: str | Channel,
+    channel: TypeInputChannel,
     dt_from: datetime.datetime,
     dt_to: datetime.datetime,
     forwards_set: set,

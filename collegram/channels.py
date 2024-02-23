@@ -251,7 +251,7 @@ def recover_fwd_from_msgs(
 def fwd_from_msg_ids(
     client: TelegramClient,
     channels_dir: Path,
-    chat: Channel,
+    chat: TypeInputChannel,
     chans_fwd_msg: dict[int, dict],
     anonymiser,
     parent_priority,
