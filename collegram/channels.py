@@ -195,23 +195,26 @@ def get_recommended(
 
 
 @typing.overload
-def get_matching_chat_from_full(full_chat: ChatFull) -> Channel:
+def get_matching_chat_from_full(full_chat: ChatFull, channel_id: int | None = None) -> Channel:
     ...
 
 
 @typing.overload
-def get_matching_chat_from_full(full_chat: dict) -> dict:
+def get_matching_chat_from_full(full_chat: dict, channel_id: int | None = None) -> dict:
     ...
 
 
-def get_matching_chat_from_full(full_chat: ChatFull | dict) -> Channel | dict:
-    get = lambda obj, s: (
-        getattr(obj, s) if isinstance(full_chat, ChatFull) else obj.get(s)
-    )
+def get_matching_chat_from_full(full_chat: ChatFull | dict, channel_id: int | None = None) -> Channel | dict:
+    if isinstance(full_chat, dict):
+        get = lambda obj, s: obj.get(s)
+    else:
+        get = lambda obj, s: getattr(obj, s)
+
+    id_to_match = get(get(full_chat, "full_chat"), "id") if channel_id is None else channel_id
     chat = [
         c
         for c in get(full_chat, "chats")
-        if get(c, "id") == get(get(full_chat, "full_chat"), "id")
+        if get(c, "id") == id_to_match
     ][0]
     return chat
 
