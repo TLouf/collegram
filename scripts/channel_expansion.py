@@ -27,7 +27,6 @@ if __name__ == '__main__':
     # for their children.
     private_chans_priority = int(1e7)
     lang_priorities = {lc: 1 for lc in ['EN', 'FR', 'ES', 'DE', 'EL', 'IT', 'PL', 'RO']}
-    lang_priorities['EN'] = 100
     lang_detector = LanguageDetectorBuilder.from_all_languages().build()
     channels_dir = paths.raw_data / 'channels'
     # Go up to 30 days ago so that view counts, etc, have more or less reached their final value
