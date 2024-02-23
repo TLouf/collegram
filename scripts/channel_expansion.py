@@ -117,6 +117,9 @@ if __name__ == '__main__':
                 client, channel_full, channel_saved_data, anonymiser, channels_dir,
                 recommended_chans, **get_prio_kwargs,
             )
+            channel_save_data = collegram.channels.anon_full_dict(
+                channel_save_data, anonymiser.anonymise,
+            )
             collegram.channels.save(channel_save_data, channels_dir)
 
             # Save messages, don't get to avoid overflowing memory.

@@ -171,7 +171,7 @@ def get_full(
         elif input_chan:
             try:
                 full_chat = client(GetFullChannelRequest(channel=input_chan))
-                full_chat_d = {**full_chat_d, **get_full_anon_dict(full_chat, anon_func)}
+                full_chat_d = {**full_chat_d, **get_anoned_full_dict(full_chat, anon_func)}
                 anon_id = full_chat_d["full_chat"]["id"]
                 p = str(channels_dir / f"{anon_id}.json")
                 fs.open(p, "w").write(json.dumps(full_chat_d))
@@ -319,10 +319,12 @@ def anonymise_full_chat(full_chat: ChannelFull, anon_func, safe=True) -> Channel
     return full_chat
 
 
-def get_full_anon_dict(full_chat: ChatFull, anon_func, safe=True):
-    # TODO: anon mentions in about
+def get_anoned_full_dict(full_chat: ChatFull, anon_func, safe=True):
     channel_save_data = json.loads(full_chat.to_json())
-    for c in channel_save_data["chats"]:
+    return anon_full_dict(channel_save_data, anon_func, safe=safe)
+
+def anon_full_dict(full_dict: dict, anon_func, safe=True):
+    for c in full_dict["chats"]:
         c["photo"] = None
         c["id"] = anon_func(c["id"], safe=safe)
         c["username"] = anon_func(c["username"], safe=safe)
@@ -330,7 +332,7 @@ def get_full_anon_dict(full_chat: ChatFull, anon_func, safe=True):
         if c["usernames"] is not None:
             for un in c["usernames"]:
                 un["username"] = anon_func(un["username"], safe=safe)
-    full_channel = channel_save_data["full_chat"]
+    full_channel = full_dict["full_chat"]
     full_channel["chat_photo"] = None
     full_channel["id"] = anon_func(full_channel["id"], safe=safe)
     full_channel["linked_chat_id"] = anon_func(
@@ -339,7 +341,9 @@ def get_full_anon_dict(full_chat: ChatFull, anon_func, safe=True):
     full_channel["migrated_from_chat_id"] = anon_func(
         full_channel["migrated_from_chat_id"], safe=safe
     )
-    return channel_save_data
+    if 'recommended_channels' in full_channel:
+        full_channel['recommended_channels'] = list(map(anon_func, full_channel['recommended_channels']))
+    return full_dict
 
 
 def get_explo_priority(
@@ -372,20 +376,16 @@ def get_extended_save_data(
     channel_saved_data: dict,
     anonymiser,
     channels_dir: Path,
-    recommended_chans_prios: dict | None,
+    recommended_chans_prios: dict | None = None,
     **explo_prio_kwargs,
 ):
+    channel_save_data = json.loads(channel_full.to_json())
     chat = get_matching_chat_from_full(channel_full)
 
     users_list = collegram.users.get_channel_users(
         client, chat, anonymiser.anonymise
-    ) if channel_full.full_chat.can_view_participants else []
+    ) if channel_save_data['full_chat'].get('can_view_participants', False) else []
 
-    # Might seem redundant to save before and after getting messages, but this
-    # way, if the connection crashes this info will still have been saved.
-    channel_save_data = get_full_anon_dict(
-        channel_full, anonymiser.anonymise
-    )
     channel_save_data['participants'] =  [json.loads(u.to_json()) for u in users_list]
 
     channel_save_data['recommended_channels'] = []
@@ -397,14 +397,13 @@ def get_extended_save_data(
             recommended_chans_prios[c.id] = get_explo_priority(
                 full_chat_d, anonymiser, **explo_prio_kwargs
             )
-        channel_save_data['recommended_channels'].append(anonymiser.anonymise(c.id))
-
+        channel_save_data['recommended_channels'].append(c.id)
+    anonymiser.save_map()
     for content_type, f in collegram.messages.MESSAGE_CONTENT_TYPE_MAP.items():
         count = collegram.messages.get_channel_messages_count(client, chat, f)
         channel_save_data[f"{content_type}_count"] = count
 
     channel_save_data['forwards_from'] = channel_saved_data.get('forwards_from', [])
-    anonymiser.save_map()
     channel_save_data['last_queried_at'] = datetime.datetime.now(datetime.UTC).isoformat()
     return channel_save_data
 
