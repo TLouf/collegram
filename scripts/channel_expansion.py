@@ -15,6 +15,8 @@ import collegram
 
 if __name__ == '__main__':
     load_dotenv()
+    key_name = 'thomas'
+
     paths = collegram.paths.ProjectPaths()
     script_path = paths.proj / 'scripts' / __file__
     logging_conf = json.loads((script_path.parent / 'logging.json').read_text())
@@ -42,7 +44,8 @@ if __name__ == '__main__':
     for c_id, c_hash in channels_first_seed.items():
         anonymiser = collegram.utils.HMAC_anonymiser()
         _, full_chat_d = collegram.channels.get_full(
-            client, channels_dir, anonymiser.anonymise, channel_id=c_id, access_hash=c_hash,
+            client, channels_dir, anonymiser.anonymise, key_name,
+            channel_id=c_id, access_hash=c_hash,
         )
         if full_chat_d == {}:
             continue
@@ -70,7 +73,8 @@ if __name__ == '__main__':
             channel_identifier = int(channel_identifier)
         anonymiser = collegram.utils.HMAC_anonymiser()
         listed_channel_full, listed_channel_data = collegram.channels.get_full(
-            client, channels_dir, anonymiser.anonymise, channel_id=channel_identifier, force_query=True,
+            client, channels_dir, anonymiser.anonymise, key_name,
+            channel_id=channel_identifier, force_query=True,
         )
         if listed_channel_data == {} and listed_channel_full is None:
             logger.warning(f"could not get data for listed channel {channel_identifier}")
@@ -93,7 +97,7 @@ if __name__ == '__main__':
                 channel_saved_data = listed_channel_data
             else:
                 channel_full, channel_saved_data = collegram.channels.get_full(
-                    client, channels_dir, anonymiser.anonymise, channel_id=channel_id,
+                    client, channels_dir, anonymiser.anonymise, key_name, channel_id=channel_id,
                     force_query=True,
                 )
                 if channel_saved_data == {} and channel_full is None:
@@ -159,7 +163,8 @@ if __name__ == '__main__':
                     new_fwds = chunk_fwds.difference(forwarded_chans.keys())
                     for i in new_fwds:
                         _, full_chat_d = collegram.channels.get_full(
-                            client, channels_dir, anonymiser.anonymise, channel_id=i,
+                            client, channels_dir, anonymiser.anonymise, key_name,
+                            channel_id=i,
                         )
                         forwarded_chans[i] = collegram.channels.get_explo_priority(
                             full_chat_d, anonymiser, **get_prio_kwargs,

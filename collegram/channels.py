@@ -135,6 +135,7 @@ def get_full(
     client: TelegramClient,
     channels_dir: Path,
     anon_func,
+    key_name: str,
     channel: Channel | PeerChannel | None = None,
     channel_id: int | str | None = None,
     access_hash: int | None = None,
@@ -172,9 +173,7 @@ def get_full(
             try:
                 full_chat = client(GetFullChannelRequest(channel=input_chan))
                 full_chat_d = {**full_chat_d, **get_anoned_full_dict(full_chat, anon_func)}
-                anon_id = full_chat_d["full_chat"]["id"]
-                p = str(channels_dir / f"{anon_id}.json")
-                fs.open(p, "w").write(json.dumps(full_chat_d))
+                save(full_chat_d, channels_dir, key_name, fs=fs)
             except ChannelPrivateError:
                 logger.debug(f"found private channel {channel_id}")
             except ValueError:
@@ -408,9 +407,16 @@ def get_extended_save_data(
     return channel_save_data
 
 
-def save(chan_data: dict, channels_dir: Path, fs: AbstractFileSystem = LOCAL_FS):
+def save(chan_data: dict, channels_dir: Path, key_name: str, fs: AbstractFileSystem = LOCAL_FS):
     anon_id = chan_data['full_chat']['id']
     channel_save_path = channels_dir / f"{anon_id}.json"
+    # Since `access_hash` is API-key-dependent, always add a key_name: access_hash
+    # mapping in `access_hashes`.
+    for chat_d in chan_data['chats']:
+        access_hashes = chat_d.get('access_hashes', {})
+        if key_name not in access_hashes:
+            access_hashes[key_name] = chat_d['access_hash']
+            chat_d['access_hashes'] = access_hashes
     fs.mkdirs(str(channel_save_path.parent), exist_ok=True)
     with fs.open(str(channel_save_path), "w") as f:
         json.dump(chan_data, f)
