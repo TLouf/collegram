@@ -253,6 +253,7 @@ def fwd_from_msg_ids(
     chat: TypeInputChannel,
     chans_fwd_msg: dict[int, dict],
     anonymiser,
+    key_name: str,
     parent_priority,
     lang_detector: LanguageDetector,
     lang_priorities: dict,
@@ -271,6 +272,7 @@ def fwd_from_msg_ids(
                 client,
                 channels_dir,
                 anonymiser.anonymise,
+                key_name,
                 channel=m.fwd_from.from_id,
                 fs=fs,
             )
@@ -375,6 +377,7 @@ def get_extended_save_data(
     channel_saved_data: dict,
     anonymiser,
     channels_dir: Path,
+    key_name: str,
     recommended_chans_prios: dict | None = None,
     **explo_prio_kwargs,
 ):
@@ -390,7 +393,7 @@ def get_extended_save_data(
     channel_save_data['recommended_channels'] = []
     for c in get_recommended(client, chat):
         _, full_chat_d = get_full(
-            client, channels_dir, anonymiser.anonymise, channel=c,
+            client, channels_dir, anonymiser.anonymise, key_name, channel=c,
         )
         if recommended_chans_prios is not None:
             recommended_chans_prios[c.id] = get_explo_priority(

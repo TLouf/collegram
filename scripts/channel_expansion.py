@@ -119,12 +119,12 @@ if __name__ == '__main__':
             recommended_chans = {}
             channel_save_data = collegram.channels.get_extended_save_data(
                 client, channel_full, channel_saved_data, anonymiser, channels_dir,
-                recommended_chans, **get_prio_kwargs,
+                key_name, recommended_chans, **get_prio_kwargs,
             )
             channel_save_data = collegram.channels.anon_full_dict(
                 channel_save_data, anonymiser.anonymise,
             )
-            collegram.channels.save(channel_save_data, channels_dir)
+            collegram.channels.save(channel_save_data, channels_dir, key_name)
 
             # Save messages, don't get to avoid overflowing memory.
             msgs_dir_path = paths.raw_data / 'messages' / f"{anon_channel_id}"
@@ -191,8 +191,8 @@ if __name__ == '__main__':
                 chans_fwd_msg_to_query[og_id] = fwd_chans_from_saved_msg[hashed_id]
 
             unseen_fwd_chans_from_saved_msgs = collegram.channels.fwd_from_msg_ids(
-                client, channels_dir, chat, chans_fwd_msg_to_query, anonymiser,
-                **get_prio_kwargs,
+                client, channels_dir, input_chat, chans_fwd_msg_to_query, anonymiser,
+                key_name, **get_prio_kwargs,
             )
 
             channel_save_data['forwards_from'] = [
@@ -200,7 +200,7 @@ if __name__ == '__main__':
                 for c in set(forwarded_chans.keys()).union(id_map_fwd_chans.keys())
             ]
             anonymiser.save_map()
-            collegram.channels.save(channel_save_data, channels_dir)
+            collegram.channels.save(channel_save_data, channels_dir, key_name)
 
             # What new channels should we explore?
             new_channels = {**new_channels, **forwarded_chans, **unseen_fwd_chans_from_saved_msgs, **recommended_chans}
