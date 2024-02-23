@@ -115,6 +115,9 @@ def read_nth_to_last_line(path, fs: fsspec.AbstractFileSystem = LOCAL_FS, n=1):
     return last_line
 
 
+def get_last_modif_time(fpath: Path) -> datetime.datetime:
+    return datetime.datetime.fromtimestamp(fpath.lstat().st_mtime)
+
 PY_PL_DTYPES_MAP = defaultdict(
     lambda: pl.Null,
     {
