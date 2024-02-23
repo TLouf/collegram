@@ -155,11 +155,11 @@ def get_full(
     full_chat_d = (
         json.loads(fs.open(save_path, "r").read()) if fs.exists(save_path) else {}
     )
-    if full_chat_d:
-        chat = get_matching_chat_from_full(full_chat_d)
-        access_hash = chat["access_hash"]
 
     if force_query or not full_chat_d:
+        if full_chat_d:
+            chat = get_matching_chat_from_full(full_chat_d)
+            access_hash = chat["access_hash"]
         input_chan = (
             channel
             if isinstance(channel, (Channel, PeerChannel))
