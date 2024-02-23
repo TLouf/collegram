@@ -92,7 +92,7 @@ DISCARDED_USER_FIELDS = (
 def flatten_dict(p: dict):
     flat_p = p.copy()
     for f in DISCARDED_USER_FIELDS:
-        flat_p.pop(f)
+        flat_p.pop(f, None)
     return flat_p
 
 
