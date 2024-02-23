@@ -277,7 +277,7 @@ def fwd_from_msg_ids(
             )
         elif m is not None:
             logger.error("message supposed to have been forwarded is not")
-            breakpoint()
+            continue
         else:
             logger.error("forwarded message was deleted")
 
