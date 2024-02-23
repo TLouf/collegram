@@ -84,6 +84,7 @@ DISCARDED_USER_FIELDS = (
     "photo",
     "emoji_status",
     "color",
+    "profile_color",
     "status",
 )
 
