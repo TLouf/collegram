@@ -452,6 +452,7 @@ CHANGED_CHAN_FIELDS = {
 NEW_CHAN_FIELDS = {
     "bot_ids": pl.List(pl.Int64),
     "linked_chats_ids": pl.List(pl.Utf8),
+    "recommended_channels": pl.List(pl.Utf8),
     "location_point": pl.List(pl.Float64),
     "location_str": pl.Utf8,
     "last_queried_at": pl.Datetime,
