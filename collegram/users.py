@@ -7,7 +7,7 @@ import polars as pl
 import telethon.sync
 from telethon.errors import ChatAdminRequiredError
 from telethon.tl.functions.channels import GetParticipantsRequest
-from telethon.tl.types import ChannelParticipantsSearch, User
+from telethon.tl.types import ChannelParticipantsSearch, TypeInputChannel, User
 
 from collegram.utils import PY_PL_DTYPES_MAP
 
@@ -18,37 +18,8 @@ if typing.TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def get_channel_participants(client: TelegramClient, channel_username):
-    offset = 0
-    limit = 100
-    all_participants = []
-
-    while True:
-        try:
-            participants = client(
-                GetParticipantsRequest(
-                    channel_username,
-                    ChannelParticipantsSearch(""),
-                    offset,
-                    limit,
-                    hash=0,
-                )
-            )
-        except ChatAdminRequiredError:
-            logger.warning(f"No access to participants of {channel_username}")
-            break
-
-        if not participants.users:
-            break
-
-        all_participants.extend(participants.users)
-        offset += len(participants.users)
-
-    return all_participants
-
-
 def get_channel_users(
-    client: TelegramClient, channel: str | Channel, anon_func
+    client: TelegramClient, channel: TypeInputChannel, anon_func
 ) -> list[User]:
     """
     We're missing the bio here, can be obtained with GetFullUserRequest
