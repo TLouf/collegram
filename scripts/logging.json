@@ -6,14 +6,16 @@
   "handlers": {
       "stream_handler": {
           "class": "logging.StreamHandler",
-          "formatter": "fmt"
+          "formatter": "fmt",
+          "level": "INFO"
       },
       "file_handler": {
           "class": "logging.handlers.RotatingFileHandler",
           "formatter": "fmt",
           "filename": "script.log",
           "backupCount": 1,
-          "maxBytes": 262144
+          "maxBytes": 262144,
+          "level": "WARNING"
       }
   },
   "root": {"handlers": ["stream_handler", "file_handler"], "level": 20},
