@@ -7,11 +7,13 @@ import collegram
 
 if __name__ == '__main__':
     load_dotenv()
+    key_name = 'thomas'
     paths = collegram.paths.ProjectPaths()
     channels_dir = paths.raw_data / 'channels'
+    pre = f'{key_name.upper()}_'
     client = collegram.client.connect(
-        os.environ['API_ID'], os.environ['API_HASH'], os.environ["PHONE_NUMBER"],
-        session=str(paths.proj / 'anon.session')
+        os.environ[f'{pre}API_ID'], os.environ[f'{pre}API_HASH'], os.environ[f"{pre}PHONE_NUMBER"],
+        session=str(paths.proj / f'{key_name}.session'),
     )
     output_file = paths.interim_data / "channels_first_seed.json"
     channels = json.loads(output_file.read_text())

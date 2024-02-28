@@ -34,9 +34,11 @@ if __name__ == '__main__':
     # Go up to 30 days ago so that view counts, etc, have more or less reached their final value
     global_dt_to = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=30)
     # dt_from = dt_to - datetime.timedelta(days=31)
+    pre = f'{key_name.upper()}_'
     client = collegram.client.connect(
-        os.environ['API_ID'], os.environ['API_HASH'], os.environ["PHONE_NUMBER"],
-        session=str(paths.proj / 'anon.session'), flood_sleep_threshold=24*3600,
+        os.environ[f'{pre}API_ID'], os.environ[f'{pre}API_HASH'], os.environ[f"{pre}PHONE_NUMBER"],
+        session=str(paths.proj / f'{key_name}.session'), flood_sleep_threshold=24*3600,
+        receive_updates=False, entity_cache_limit=10000,
     )
 
     channels_first_seed = json.loads((paths.interim_data / "channels_first_seed.json").read_text())
