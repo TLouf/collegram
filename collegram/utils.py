@@ -6,7 +6,7 @@ import json
 import os
 from collections import defaultdict
 from queue import PriorityQueue
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, overload
 
 import fsspec
 import polars as pl
@@ -41,12 +41,14 @@ class HMAC_anonymiser:
         key_env_var_name: str = "HMAC_KEY",
         anon_map: bidict | None = None,
         save_path: Path | None = None,
+        fs: fsspec.AbstractFileSystem = LOCAL_FS,
     ):
         if key is None:
             key = os.environ[key_env_var_name]
         self.key = bytes.fromhex(key)
         self.anon_map: bidict[str, str] = bidict() if anon_map is None else anon_map
         self.save_path = save_path
+        self.fs = fs
         if save_path is not None:
             self.update_from_disk()
 
@@ -85,18 +87,20 @@ class HMAC_anonymiser:
                     self.anon_map[data_str] = data
         return data
 
-    def update_from_disk(self, save_path: Path | None = None, fs: fsspec.AbstractFileSystem = LOCAL_FS):
+    def update_from_disk(self, save_path: Path | None = None):
         save_path = str(save_path if save_path is not None else self.save_path)
-        if fs.exists(save_path):
-            with fs.open(save_path, "r") as f:
+        if self.fs.exists(save_path):
+            with self.fs.open(save_path, "r") as f:
                 d = json.load(f)
             self.anon_map.update(d)
 
-    def save_map(self, save_path: Path | None = None, fs: fsspec.AbstractFileSystem = LOCAL_FS):
+    def save_map(self, save_path: Path | None = None):
         save_path = save_path if save_path is not None else self.save_path
+        if save_path is None:
+            raise ValueError('no save_path set or passed here.')
         parent = str(save_path.parent)
-        fs.mkdirs(parent, exist_ok=True)
-        with fs.open(str(save_path), "w") as f:
+        self.fs.mkdirs(parent, exist_ok=True)
+        with self.fs.open(str(save_path), "w") as f:
             json.dump(dict(self.anon_map), f)
 
     @property
