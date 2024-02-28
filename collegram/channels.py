@@ -41,6 +41,10 @@ if typing.TYPE_CHECKING:
         TypeInputPeer,
     )
 
+    from collegram.paths import ChannelPaths
+    from collegram.utils import HMAC_anonymiser
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -535,3 +539,15 @@ def get_pl_schema():
         chan_schema[arg] = PY_PL_DTYPES_MAP.get(inner_dtype)
     chan_schema = {**chan_schema, **CHANGED_CHAN_FIELDS, **NEW_CHAN_FIELDS}
     return chan_schema
+
+
+def erase(channel_paths: ChannelPaths, fs: AbstractFileSystem = LOCAL_FS,):
+    '''
+    Remove all data about channel from disk (for deleted channels or those who became
+    private).
+    '''
+    fs.rm(channel_paths.anon_map)
+    fs.rm(channel_paths.channel)
+    for p in fs.ls(channel_paths.messages):
+        fs.rm(p)
+    fs.rmdir(channel_paths.messages)
