@@ -78,3 +78,15 @@ class ProjectPaths:
         self.processed_data = self.proj_data / "processed"
         self.channel_seed = self.ext_data / "channels.txt"
         self.figs = self.proj / "reports" / "figures"
+
+
+@dataclass
+class ChannelPaths:
+    anon_channel_id: str
+    project_paths: ProjectPaths
+
+    def __post_init__(self):
+        root = self.project_paths.raw_data
+        self.anon_map = root / 'anon_maps' / f'{self.anon_channel_id}.json'
+        self.messages = root / 'messages' / self.anon_channel_id
+        self.channel = root / 'channels' / f'{self.anon_channel_id}.json'
