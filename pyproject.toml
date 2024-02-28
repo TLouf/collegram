@@ -24,6 +24,7 @@ dependencies = [
     "python-dotenv>=0.5.1",
     "tqdm>=4.66.2",
     "lingua-language-detector>=2.0.2",
+    "bidict>=0.23.1",
 ]
 
 [project.urls]

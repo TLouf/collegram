@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 
 import fsspec
 import polars as pl
+from bidict import bidict
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -38,13 +39,13 @@ class HMAC_anonymiser:
         self,
         key: str | None = None,
         key_env_var_name: str = "HMAC_KEY",
-        anon_map: dict | None = None,
+        anon_map: bidict | None = None,
         save_path: Path | None = None,
     ):
         if key is None:
             key = os.environ[key_env_var_name]
         self.key = bytes.fromhex(key)
-        self.anon_map: dict[str, str] = {} if anon_map is None else anon_map
+        self.anon_map: bidict[str, str] = bidict() if anon_map is None else anon_map
         self.save_path = save_path
         if save_path is not None:
             self.update_from_disk()
@@ -88,11 +89,11 @@ class HMAC_anonymiser:
         parent = str(save_path.parent)
         fs.mkdirs(parent, exist_ok=True)
         with fs.open(str(save_path), "w") as f:
-            json.dump(self.anon_map, f)
+            json.dump(dict(self.anon_map), f)
 
     @property
-    def inverse_anon_map(self) -> dict[str, str]:
-        return {value: key for key, value in self.anon_map.items()}
+    def inverse_anon_map(self) -> bidict[str, str]:
+        return self.anon_map.inverse
 
 
 def read_nth_to_last_line(path, fs: fsspec.AbstractFileSystem = LOCAL_FS, n=1):
