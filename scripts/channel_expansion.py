@@ -8,6 +8,7 @@ from pathlib import Path
 from pprint import pprint
 
 import polars as pl
+import setup
 from dotenv import load_dotenv
 from lingua import LanguageDetectorBuilder
 
@@ -18,11 +19,7 @@ if __name__ == '__main__':
     key_name = 'thomas'
 
     paths = collegram.paths.ProjectPaths()
-    script_path = paths.proj / 'scripts' / __file__
-    logging_conf = json.loads((script_path.parent / 'logging.json').read_text())
-    logging_conf['handlers']['file_handler']['filename'] = str(script_path.with_suffix('.log'))
-    logging.config.dictConfig(logging_conf)
-    logger = logging.getLogger()
+    logger = setup.init_logging(paths.proj / 'scripts' / __file__)
 
     # should always be strictly positive integers, since we want to avoid rabbit holes
     # very far away from initial seed and therefore increment based on parent priority
