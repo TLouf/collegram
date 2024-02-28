@@ -67,15 +67,15 @@ class ProjectPaths:
     """
 
     proj: Path = Path(collegram.__file__).parent.parent
+    data: Path | None = None
 
-    def __post_init__(
-        self,
-    ):
-        self.proj_data = self.proj / "data"
-        self.ext_data = self.proj_data / "external"
-        self.raw_data = self.proj_data / "raw"
-        self.interim_data = self.proj_data / "interim"
-        self.processed_data = self.proj_data / "processed"
+    def __post_init__(self):
+        if self.data is None:
+            self.data = self.proj / "data"
+        self.ext_data = self.data / "external"
+        self.raw_data = self.data / "raw"
+        self.interim_data = self.data / "interim"
+        self.processed_data = self.data / "processed"
         self.channel_seed = self.ext_data / "channels.txt"
         self.figs = self.proj / "reports" / "figures"
 
