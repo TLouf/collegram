@@ -31,7 +31,8 @@ import collegram.json
 import collegram.messages
 import collegram.text
 import collegram.users
-from collegram.utils import LOCAL_FS, PY_PL_DTYPES_MAP
+from collegram.paths import ChannelPaths, ProjectPaths
+from collegram.utils import LOCAL_FS, PY_PL_DTYPES_MAP, HMAC_anonymiser
 
 if typing.TYPE_CHECKING:
     from pathlib import Path
@@ -45,9 +46,6 @@ if typing.TYPE_CHECKING:
         TypeInputChannel,
         TypeInputPeer,
     )
-
-    from collegram.paths import ChannelPaths
-    from collegram.utils import HMAC_anonymiser
 
 
 logger = logging.getLogger(__name__)
@@ -133,7 +131,7 @@ def get(
 
 def get_full(
     client: TelegramClient,
-    channels_dir: Path,
+    project_paths: ProjectPaths,
     anonymiser: HMAC_anonymiser,
     key_name: str,
     channel: Channel | PeerChannel | None = None,
@@ -149,7 +147,8 @@ def get_full(
         channel_id = channel.id if isinstance(channel, Channel) else channel.channel_id
 
     anon_id = anonymiser.anonymise(channel_id)
-    save_path = str(channels_dir / f"{anon_id}.json")
+    chan_paths = ChannelPaths(anon_id, project_paths)
+    save_path = str(chan_paths.channel)
     full_chat_d = (
         json.loads(fs.open(save_path, "r").read()) if fs.exists(save_path) else {}
     )
@@ -172,8 +171,8 @@ def get_full(
             logger.error(f"Passed identifier {channel_id} refers to a user.")
         elif input_chan:
             full_chat = client(GetFullChannelRequest(channel=input_chan))
-            full_chat_d = {**full_chat_d, **get_anoned_full_dict(full_chat, anonymiser.anonymise)}
-            save(full_chat_d, channels_dir, key_name, fs=fs)
+            full_chat_d = {**full_chat_d, **get_anoned_full_dict(full_chat, anonymiser)}
+            save(full_chat_d, project_paths, key_name, fs=fs)
     return full_chat, full_chat_d
 
 
@@ -256,11 +255,11 @@ def recover_fwd_from_msgs(
     fs: AbstractFileSystem = LOCAL_FS,
 ) -> dict[int, dict]:
     chans_fwd_msg = {}
-    messages_path = str(messages_path)
-    if fs.isdir(messages_path):
-        fpaths_iter = fs.glob(f"{messages_path}/*.jsonl")
-    elif fs.exists(messages_path):
-        fpaths_iter = [messages_path]
+    messages_str_path = str(messages_path)
+    if fs.isdir(messages_str_path):
+        fpaths_iter = fs.glob(f"{messages_str_path}/*.jsonl")
+    elif fs.exists(messages_str_path):
+        fpaths_iter = [messages_str_path]
     else:
         fpaths_iter = []
 
@@ -282,7 +281,7 @@ def recover_fwd_from_msgs(
 
 def fwd_from_msg_ids(
     client: TelegramClient,
-    channels_dir: Path,
+    project_paths: ProjectPaths,
     chat: TypeInputChannel,
     chans_fwd_msg: dict[int, dict],
     anonymiser,
@@ -302,14 +301,18 @@ def fwd_from_msg_ids(
         fwd_from = getattr(m, "fwd_from", None)
         if fwd_from is not None:
             try:
+                fwd_id = m.fwd_from.from_id
+                new_chan_paths = ChannelPaths(anonymiser.anonymise(fwd_id), project_paths)
+                new_anon = HMAC_anonymiser(anonymiser.key, save_path=new_chan_paths.anon_map)
                 _, fwd_full_chan_d = get_full(
                     client,
-                    channels_dir,
+                    project_paths,
                     anonymiser,
                     key_name,
-                    channel=m.fwd_from.from_id,
+                    channel=fwd_id,
                     fs=fs,
                 )
+                new_anon.save_map()
             except ChannelPrivateError:
                 # `m.fwd_from.from_id`` is for sure a valid Channel, might be private
                 # though. Assign `fwd_full_chan_d` to empty dict in case the channel has
@@ -333,11 +336,12 @@ def fwd_from_msg_ids(
     return forwarded_channels
 
 
-def get_anoned_full_dict(full_chat: ChatFull, anon_func, safe=True):
+def get_anoned_full_dict(full_chat: ChatFull, anonymiser: HMAC_anonymiser, safe=True):
     channel_save_data = json.loads(full_chat.to_json())
-    return anon_full_dict(channel_save_data, anon_func, safe=safe)
+    return anon_full_dict(channel_save_data, anonymiser, safe=safe)
 
-def anon_full_dict(full_dict: dict, anon_func, safe=True):
+def anon_full_dict(full_dict: dict, anonymiser: HMAC_anonymiser, safe=True):
+    anon_func = anonymiser.anonymise
     for c in full_dict["chats"]:
         c["photo"] = None
         c["id"] = anon_func(c["id"], safe=safe)
@@ -357,6 +361,7 @@ def anon_full_dict(full_dict: dict, anon_func, safe=True):
     )
     if 'recommended_channels' in full_channel:
         full_channel['recommended_channels'] = list(map(anon_func, full_channel['recommended_channels']))
+    anonymiser.save_map()
     return full_dict
 
 
@@ -389,7 +394,7 @@ def get_extended_save_data(
     chat: TypeInputChannel,
     channel_save_data: dict,
     anonymiser,
-    channels_dir: Path,
+    project_paths: ProjectPaths,
     key_name: str,
     recommended_chans_prios: dict | None = None,
     **explo_prio_kwargs,
@@ -405,9 +410,12 @@ def get_extended_save_data(
         # A priori, this `get_full` call is safe as `GetChannelRecommendationsRequest`
         # should only return public channels, and all these channels should be
         # considered as seen before.
+        new_chan_paths = ChannelPaths(anonymiser.anonymise(c.id), project_paths)
+        new_anon = HMAC_anonymiser(anonymiser.key, save_path=new_chan_paths.anon_map)
         _, full_chat_d = get_full(
-            client, channels_dir, anonymiser, key_name, channel=c,
+            client, project_paths, new_anon, key_name, channel=c,
         )
+        new_anon.save_map()
         if recommended_chans_prios is not None:
             recommended_chans_prios[c.id] = get_explo_priority(
                 full_chat_d, anonymiser, **explo_prio_kwargs
@@ -423,9 +431,10 @@ def get_extended_save_data(
     return channel_save_data
 
 
-def save(chan_data: dict, channels_dir: Path, key_name: str, fs: AbstractFileSystem = LOCAL_FS):
+def save(chan_data: dict, project_paths: ProjectPaths, key_name: str, fs: AbstractFileSystem = LOCAL_FS):
     anon_id = chan_data['full_chat']['id']
-    channel_save_path = channels_dir / f"{anon_id}.json"
+    chan_paths = ChannelPaths(anon_id, project_paths)
+    channel_save_path = chan_paths.channel
     # Since `access_hash` is API-key-dependent, always add a key_name: access_hash
     # mapping in `access_hashes`.
     for chat_d in chan_data['chats']:

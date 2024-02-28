@@ -32,7 +32,6 @@ if __name__ == '__main__':
     private_chans_priority = int(1e7)
     lang_priorities = {lc: 1 for lc in ['EN', 'FR', 'ES', 'DE', 'EL', 'IT', 'PL', 'RO']}
     lang_detector = LanguageDetectorBuilder.from_all_languages().build()
-    channels_dir = paths.raw_data / 'channels'
     # Go up to 30 days ago so that view counts, etc, have more or less reached their final value
     global_dt_to = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=30)
     # dt_from = dt_to - datetime.timedelta(days=31)
@@ -52,7 +51,7 @@ if __name__ == '__main__':
         anonymiser.update_from_disk()
         try:
             _, full_chat_d = collegram.channels.get_full(
-                client, channels_dir, anonymiser, key_name,
+                client, paths, anonymiser, key_name,
                 channel_id=c_id, access_hash=c_hash,
             )
         except (ChannelPrivateError, UsernameInvalidError, ValueError):
@@ -61,7 +60,6 @@ if __name__ == '__main__':
             # Here `ChannelInvalidError` cannot happen because first seed consists of
             # broadcast channels only.
             continue
-        anonymiser.save_map()
         prio = collegram.channels.get_explo_priority(
             full_chat_d, anonymiser, 0, lang_detector, lang_priorities, private_chans_priority
         )
@@ -84,7 +82,7 @@ if __name__ == '__main__':
         anonymiser = collegram.utils.HMAC_anonymiser()
         try:
             listed_channel_full, listed_channel_full_d = collegram.channels.get_full(
-                client, channels_dir, anonymiser, key_name,
+                client, paths, anonymiser, key_name,
                 channel_id=channel_identifier, force_query=True,
             )
         except (ChannelInvalidError, ChannelPrivateError, UsernameInvalidError, ValueError):
@@ -107,7 +105,7 @@ if __name__ == '__main__':
             else:
                 try:
                     channel_full, saved_channel_full_d = collegram.channels.get_full(
-                        client, channels_dir, anonymiser, key_name, channel=chat,
+                        client, paths, anonymiser, key_name, channel=chat,
                         channel_id=channel_id, force_query=True,
                     )
                 except (ChannelInvalidError, ChannelPrivateError, UsernameInvalidError, ValueError):
@@ -127,12 +125,7 @@ if __name__ == '__main__':
                 client, channel_full, channel_saved_data, anonymiser, channels_dir,
                 key_name, recommended_chans, **get_prio_kwargs,
             )
-            channel_save_data = collegram.channels.anon_full_dict(
-                channel_save_data, anonymiser.anonymise,
-            )
-            collegram.channels.save(channel_save_data, channels_dir, key_name)
-
-            # Save messages, don't get to avoid overflowing memory.
+            collegram.channels.save(channel_save_data, paths, key_name)
             msgs_dir_path = paths.raw_data / 'messages' / f"{anon_channel_id}"
             msgs_dir_path.mkdir(exist_ok=True, parents=True)
             media_save_path = paths.raw_data / 'media'
@@ -170,7 +163,7 @@ if __name__ == '__main__':
                     for i in new_fwds:
                         try:
                             _, full_chat_d = collegram.channels.get_full(
-                                client, channels_dir, anonymiser, key_name,
+                                client, paths, anonymiser, key_name,
                                 channel_id=i,
                             )
                         except ChannelPrivateError:
