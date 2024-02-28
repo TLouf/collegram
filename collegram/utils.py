@@ -50,6 +50,14 @@ class HMAC_anonymiser:
         if save_path is not None:
             self.update_from_disk()
 
+    @overload
+    def anonymise(self, data: int | str, safe: bool = False) -> str:
+        ...
+
+    @overload
+    def anonymise(self, data: None, safe: bool = False) -> None:
+        ...
+
     def anonymise(self, data: int | str | None, safe: bool = False) -> str | None:
         """Anonymise the provided data.
 
