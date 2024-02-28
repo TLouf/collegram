@@ -8,7 +8,11 @@ import time
 import typing
 
 import polars as pl
-from telethon.errors import ChannelPrivateError, UsernameInvalidError
+from telethon.errors import (
+    ChannelInvalidError,
+    ChannelPrivateError,
+    UsernameInvalidError,
+)
 from telethon.tl.functions.channels import (
     GetChannelRecommendationsRequest,
     GetFullChannelRequest,
@@ -32,6 +36,7 @@ from collegram.utils import LOCAL_FS, PY_PL_DTYPES_MAP
 if typing.TYPE_CHECKING:
     from pathlib import Path
 
+    from bidict import bidict
     from fsspec import AbstractFileSystem
     from lingua import LanguageDetector
     from telethon import TelegramClient
@@ -69,7 +74,10 @@ def search_from_tgdb(client: TelegramClient, query):
 
     id_access_hash_map = {}
     for username in results:
-        entity = get_input_peer(client, username)
+        try:
+            entity = get_input_peer(client, username)
+        except (ValueError, UsernameInvalidError, ChannelPrivateError):
+            continue
         if hasattr(entity, 'channel_id'):
             id_access_hash_map[entity.channel_id] = entity.access_hash
     return id_access_hash_map
@@ -79,45 +87,32 @@ def search_from_api(client: TelegramClient, query, limit=100):
     return {c.id: c.access_hash for c in client(SearchRequest(q=query, limit=limit)).chats}
 
 
-@typing.overload
 def get_input_peer(
-    client: TelegramClient, channel_id: str, access_hash: int | None
-) -> TypeInputPeer:
-    ...
-
-
-@typing.overload
-def get_input_peer(
-    client: TelegramClient, channel_id: int, access_hash: int
+    client: TelegramClient, channel_id: str | int, access_hash: int | None = None, check: bool = True,
 ) -> InputPeerChannel:
-    ...
-
-
-@typing.overload
-def get_input_peer(
-    client: TelegramClient, channel_id: int, access_hash: None
-) -> PeerChannel:
-    ...
-
-
-def get_input_peer(
-    client: TelegramClient, channel_id: str | int, access_hash: int | None = None
-):
+    '''
+    Raises:
+      - UsernameInvalidError or ValueError when username is wrong
+      - ChannelInvalidError if wrong int ID / access_hash pair is passed and check is True
+      - ChannelPrivateError if channel is private and check is True
+    '''
     if isinstance(channel_id, str) and channel_id.isdigit():
         channel_id = int(channel_id)
 
     if isinstance(channel_id, str):
-        try:
-            # Using `get_input_entity` instead of just passing the str through to avoid
-            # skipping too many errors by catching on `GetFullChannelRequest`, which
-            # doesn't allow to know if no peer was found, or if wrong type of peer was.
-            return client.get_input_entity(channel_id)
-        except (UsernameInvalidError, ValueError):
-            logger.error(f'No peer has "{channel_id}" as username')
+        peer = channel_id
     elif access_hash is None:
-        return PeerChannel(channel_id)
+        peer = PeerChannel(channel_id)
     else:
-        return InputPeerChannel(channel_id, access_hash)
+        peer = InputPeerChannel(channel_id, access_hash)
+
+    # If we pass a username, `get_input_entity` will check if it exists, however it
+    # won't check anything if we pass it an ID. Thus why in that case we need to
+    # manually check for existence with a `get_entity`.
+    input_entity = client.get_input_entity(peer)
+    if isinstance(channel_id, int) and check:
+        client.get_entity(input_entity)
+    return input_entity
 
 
 def get(
@@ -125,6 +120,7 @@ def get(
     channel: int | str,
     access_hash: int | None = None,
 ) -> Channel | None:
+    # TODO: fix
     input_chan = get_input_peer(client, channel, access_hash)
     if input_chan:
         try:
@@ -138,7 +134,7 @@ def get(
 def get_full(
     client: TelegramClient,
     channels_dir: Path,
-    anon_func,
+    anonymiser: HMAC_anonymiser,
     key_name: str,
     channel: Channel | PeerChannel | None = None,
     channel_id: int | str | None = None,
@@ -152,38 +148,71 @@ def get_full(
     elif channel_id is None:
         channel_id = channel.id if isinstance(channel, Channel) else channel.channel_id
 
-    # Won't find file if `channel_id` is a username, but it's ok for our usage since we
-    # always force a query for the channels in the initial seed, which are the only ones
-    # we refer to with their usernames at first. Anyway, it just implies a request more.
-    anon_id = anon_func(channel_id)
+    anon_id = anonymiser.anonymise(channel_id)
     save_path = str(channels_dir / f"{anon_id}.json")
     full_chat_d = (
         json.loads(fs.open(save_path, "r").read()) if fs.exists(save_path) else {}
     )
 
     if force_query or not full_chat_d:
-        if full_chat_d:
-            chat = get_matching_chat_from_full(full_chat_d)
-            access_hash = chat["access_hash"]
-        input_chan = (
-            channel
-            if isinstance(channel, (Channel, PeerChannel))
-            else get_input_peer(client, channel_id, access_hash)
-        )
+        # TODO: if key_name in access_hashes, use that, otherwise use username. if that
+        # doesn't succeed, throw custom error to be caught in caller to redirect this
+        # channel to other key
+        if isinstance(channel, (Channel, PeerChannel, InputPeerChannel)):
+            # It is assumed here that if the caller passes a .*Peer.*, it knows what
+            # it's doing and has checked its validity.
+            input_chan = channel
+        else:
+            input_chan = get_input_chan_from_full_d(
+                client, full_chat_d, key_name, channel_id, access_hash, anonymiser.inverse_anon_map,
+            )
         str_id_is_user = isinstance(input_chan, InputPeerUser)
         if input_chan and str_id_is_user:
+            # This case only happens for firt seed, so we always pass on these.
             logger.error(f"Passed identifier {channel_id} refers to a user.")
         elif input_chan:
-            try:
-                full_chat = client(GetFullChannelRequest(channel=input_chan))
-                full_chat_d = {**full_chat_d, **get_anoned_full_dict(full_chat, anon_func)}
-                save(full_chat_d, channels_dir, key_name, fs=fs)
-            except ChannelPrivateError:
-                logger.debug(f"found private channel {channel_id}")
-            except ValueError:
-                logger.error("unexpected valuerror")
-                breakpoint()
+            full_chat = client(GetFullChannelRequest(channel=input_chan))
+            full_chat_d = {**full_chat_d, **get_anoned_full_dict(full_chat, anonymiser.anonymise)}
+            save(full_chat_d, channels_dir, key_name, fs=fs)
     return full_chat, full_chat_d
+
+
+def get_input_chan_from_full_d(client: TelegramClient, full_chat_d: dict, key_name: str, channel_id: str | int | None = None, access_hash: int | None = None, inverse_anon_map: bidict | None = None):
+    # if ChannelPrivateError, logic outside to handle (can happen!)
+    # UsernameInvalidError, ValueError if (ID, access_hash) pair is invalid for that API key, and username has changed -> try other access_hash
+    # ChannelInvalidError if (ID, access_hash) pair is invalid and `inverse_anon_map` was not provided or no username (case for discussion groups)
+    # IndexError if ID is missing in inverse_anon_map
+    if channel_id is None and inverse_anon_map is None:
+        raise ValueError('must pass either original channel_id or an inverse_anon_map')
+
+    if full_chat_d:
+        if channel_id is None and inverse_anon_map is not None:
+            anon_id = full_chat_d['full_chat']['id']
+            channel_id = inverse_anon_map[anon_id]
+        if access_hash is None:
+            chat = get_matching_chat_from_full(full_chat_d)
+            chashes = chat.get('access_hashes', {})
+            chash = chat["access_hash"]
+            access_hash = chashes.get(key_name) or (chash if chash not in chashes.values() else None)
+
+    try:
+        input_peer = get_input_peer(client, channel_id, access_hash)
+    except ChannelInvalidError as e:
+        if inverse_anon_map is None:
+            raise e
+        elif full_chat_d:
+            uname = chat['username']
+            if uname is None and chat.get('usernames'):
+                # Happens for channels with multiple usernames (see "@deepfaker")
+                uname = [u['username'] for u in chat['usernames'] if u['active']]
+                uname = None if len(uname) == 0 else uname[0]
+            username = inverse_anon_map.get(uname)
+            if username is None:
+                # Discussion group attached to broadcast channel, can only get with ID
+                raise e
+            else:
+                input_peer = get_input_peer(client, username)
+    return input_peer
 
 
 def content_count(client: TelegramClient, channel: TypeInputChannel, content_type: str):
@@ -272,14 +301,20 @@ def fwd_from_msg_ids(
         )
         fwd_from = getattr(m, "fwd_from", None)
         if fwd_from is not None:
-            _, fwd_full_chan_d = get_full(
-                client,
-                channels_dir,
-                anonymiser.anonymise,
-                key_name,
-                channel=m.fwd_from.from_id,
-                fs=fs,
-            )
+            try:
+                _, fwd_full_chan_d = get_full(
+                    client,
+                    channels_dir,
+                    anonymiser,
+                    key_name,
+                    channel=m.fwd_from.from_id,
+                    fs=fs,
+                )
+            except ChannelPrivateError:
+                # `m.fwd_from.from_id`` is for sure a valid Channel, might be private
+                # though. Assign `fwd_full_chan_d` to empty dict in case the channel has
+                # actually been made private since last time we collected.
+                fwd_full_chan_d = {}
         elif m is not None:
             logger.error("message supposed to have been forwarded is not")
             continue
@@ -377,17 +412,14 @@ def get_explo_priority(
 
 def get_extended_save_data(
     client: TelegramClient,
-    channel_full: ChatFull,
-    channel_saved_data: dict,
+    chat: TypeInputChannel,
+    channel_save_data: dict,
     anonymiser,
     channels_dir: Path,
     key_name: str,
     recommended_chans_prios: dict | None = None,
     **explo_prio_kwargs,
 ):
-    channel_save_data = json.loads(channel_full.to_json())
-    chat = get_matching_chat_from_full(channel_full)
-
     users_list = collegram.users.get_channel_users(
         client, chat, anonymiser.anonymise
     ) if channel_save_data['full_chat'].get('can_view_participants', False) else []
@@ -396,8 +428,11 @@ def get_extended_save_data(
 
     channel_save_data['recommended_channels'] = []
     for c in get_recommended(client, chat):
+        # A priori, this `get_full` call is safe as `GetChannelRecommendationsRequest`
+        # should only return public channels, and all these channels should be
+        # considered as seen before.
         _, full_chat_d = get_full(
-            client, channels_dir, anonymiser.anonymise, key_name, channel=c,
+            client, channels_dir, anonymiser, key_name, channel=c,
         )
         if recommended_chans_prios is not None:
             recommended_chans_prios[c.id] = get_explo_priority(
@@ -405,11 +440,11 @@ def get_extended_save_data(
             )
         channel_save_data['recommended_channels'].append(c.id)
     anonymiser.save_map()
+
     for content_type, f in collegram.messages.MESSAGE_CONTENT_TYPE_MAP.items():
         count = collegram.messages.get_channel_messages_count(client, chat, f)
         channel_save_data[f"{content_type}_count"] = count
 
-    channel_save_data['forwards_from'] = channel_saved_data.get('forwards_from', [])
     channel_save_data['last_queried_at'] = datetime.datetime.now(datetime.UTC).isoformat()
     return channel_save_data
 
@@ -421,7 +456,7 @@ def save(chan_data: dict, channels_dir: Path, key_name: str, fs: AbstractFileSys
     # mapping in `access_hashes`.
     for chat_d in chan_data['chats']:
         access_hashes = chat_d.get('access_hashes', {})
-        if key_name not in access_hashes:
+        if key_name not in access_hashes and chat_d['access_hash'] not in access_hashes.values():
             access_hashes[key_name] = chat_d['access_hash']
             chat_d['access_hashes'] = access_hashes
     fs.mkdirs(str(channel_save_path.parent), exist_ok=True)

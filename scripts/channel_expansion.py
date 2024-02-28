@@ -11,6 +11,11 @@ import polars as pl
 import setup
 from dotenv import load_dotenv
 from lingua import LanguageDetectorBuilder
+from telethon.errors import (
+    ChannelInvalidError,
+    ChannelPrivateError,
+    UsernameInvalidError,
+)
 
 import collegram
 
@@ -42,15 +47,21 @@ if __name__ == '__main__':
     channels_queue = collegram.utils.UniquePriorityQueue()
     for c_id, c_hash in channels_first_seed.items():
         anonymiser = collegram.utils.HMAC_anonymiser()
-        _, full_chat_d = collegram.channels.get_full(
-            client, channels_dir, anonymiser.anonymise, key_name,
-            channel_id=c_id, access_hash=c_hash,
-        )
-        if full_chat_d == {}:
+        anon_id = anonymiser.anonymise(c_id)
+        anonymiser.save_path = paths.raw_data / 'anon_maps' / f"{anon_id}.json"
+        anonymiser.update_from_disk()
+        try:
+            _, full_chat_d = collegram.channels.get_full(
+                client, channels_dir, anonymiser, key_name,
+                channel_id=c_id, access_hash=c_hash,
+            )
+        except (ChannelPrivateError, UsernameInvalidError, ValueError):
+            # So many wrong possible inputs from Telegram DB so we just skip. Some
+            # with UsernameInvalidError or ValueError may be retrieved from other key.
+            # Here `ChannelInvalidError` cannot happen because first seed consists of
+            # broadcast channels only.
             continue
-        anon_map_save_path = paths.raw_data / 'anon_maps' / f"{full_chat_d['full_chat']['id']}.json"
-        anonymiser.update_from_disk(anon_map_save_path)
-        anonymiser.save_map(anon_map_save_path)
+        anonymiser.save_map()
         prio = collegram.channels.get_explo_priority(
             full_chat_d, anonymiser, 0, lang_detector, lang_priorities, private_chans_priority
         )
@@ -71,17 +82,16 @@ if __name__ == '__main__':
         if isinstance(channel_identifier, str) and channel_identifier.isdigit():
             channel_identifier = int(channel_identifier)
         anonymiser = collegram.utils.HMAC_anonymiser()
-        listed_channel_full, listed_channel_data = collegram.channels.get_full(
-            client, channels_dir, anonymiser.anonymise, key_name,
-            channel_id=channel_identifier, force_query=True,
-        )
-        if listed_channel_data == {} and listed_channel_full is None:
+        try:
+            listed_channel_full, listed_channel_full_d = collegram.channels.get_full(
+                client, channels_dir, anonymiser, key_name,
+                channel_id=channel_identifier, force_query=True,
+            )
+        except (ChannelInvalidError, ChannelPrivateError, UsernameInvalidError, ValueError):
+            # For all but ChannelPrivateError, can try with another key (TODO: add to
+            # list of new channels?).
             logger.warning(f"could not get data for listed channel {channel_identifier}")
             nr_remaining_channels -= 1
-            continue
-
-        if listed_channel_full is None:
-            logger.error("listed channel was deleted")
             continue
 
         new_channels = {}
@@ -93,20 +103,17 @@ if __name__ == '__main__':
 
             if channel_id == listed_channel_full.full_chat.id:
                 channel_full = listed_channel_full
-                channel_saved_data = listed_channel_data
+                saved_channel_full_d = listed_channel_full_d
             else:
-                channel_full, channel_saved_data = collegram.channels.get_full(
-                    client, channels_dir, anonymiser.anonymise, key_name, channel_id=channel_id,
-                    force_query=True,
-                )
-                if channel_saved_data == {} and channel_full is None:
+                try:
+                    channel_full, saved_channel_full_d = collegram.channels.get_full(
+                        client, channels_dir, anonymiser, key_name, channel=chat,
+                        channel_id=channel_id, force_query=True,
+                    )
+                except (ChannelInvalidError, ChannelPrivateError, UsernameInvalidError, ValueError):
+                    # Can be discussion group here, so include `ChannelInvalidError`.
                     logger.warning(f"could not get data for channel {channel_id}")
                     continue
-
-            if channel_full is None:
-                # this is possible
-                logger.error(f"attached chat {channel_id} can't be queried")
-                continue
 
             # Ensure we're using a raw `chat`, and not one from `listed_channel_full`
             # that may have been anonymised at some point.
@@ -161,10 +168,15 @@ if __name__ == '__main__':
                     anonymiser.save_map()
                     new_fwds = chunk_fwds.difference(forwarded_chans.keys())
                     for i in new_fwds:
-                        _, full_chat_d = collegram.channels.get_full(
-                            client, channels_dir, anonymiser.anonymise, key_name,
-                            channel_id=i,
-                        )
+                        try:
+                            _, full_chat_d = collegram.channels.get_full(
+                                client, channels_dir, anonymiser, key_name,
+                                channel_id=i,
+                            )
+                        except ChannelPrivateError:
+                            # These channels are valid and have been seen for sure,
+                            # might be private though.
+                            full_chat_d = {}
                         forwarded_chans[i] = collegram.channels.get_explo_priority(
                             full_chat_d, anonymiser, **get_prio_kwargs,
                         )
