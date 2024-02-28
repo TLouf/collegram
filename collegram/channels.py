@@ -333,32 +333,6 @@ def fwd_from_msg_ids(
     return forwarded_channels
 
 
-def get_chat_save_dict(chat: Channel, anon_func, safe=True) -> dict:
-    chat_dict = json.loads(anonymise_chat(chat, anon_func, safe=safe).to_json())
-    return chat_dict
-
-
-def anonymise_chat(chat: Channel, anon_func, safe=True) -> Channel:
-    chat.photo = None
-    chat.id = anon_func(chat.id, safe=safe)
-    chat.username = anon_func(chat.username, safe=safe)
-    chat.title = anon_func(chat.title, safe=safe)
-    if chat.usernames is not None:
-        for un in chat.usernames:
-            un.username = anon_func(un.username, safe=safe)
-    return chat
-
-
-def anonymise_full_chat(full_chat: ChannelFull, anon_func, safe=True) -> ChannelFull:
-    full_chat.chat_photo = None
-    full_chat.id = anon_func(full_chat.id, safe=safe)
-    full_chat.linked_chat_id = anon_func(full_chat.linked_chat_id, safe=safe)
-    full_chat.migrated_from_chat_id = anon_func(
-        full_chat.migrated_from_chat_id, safe=safe
-    )
-    return full_chat
-
-
 def get_anoned_full_dict(full_chat: ChatFull, anon_func, safe=True):
     channel_save_data = json.loads(full_chat.to_json())
     return anon_full_dict(channel_save_data, anon_func, safe=safe)
