@@ -200,11 +200,8 @@ def get_input_chan_from_full_d(client: TelegramClient, full_chat_d: dict, key_na
         if inverse_anon_map is None:
             raise e
         elif full_chat_d:
-            uname = chat['username']
-            if uname is None and chat.get('usernames'):
-                # Happens for channels with multiple usernames (see "@deepfaker")
-                uname = [u['username'] for u in chat['usernames'] if u['active']]
-                uname = None if len(uname) == 0 else uname[0]
+            unames = get_usernames_from_chat_d(chat)
+            uname = None if len(unames) == 0 else unames[0]
             username = inverse_anon_map.get(uname)
             if username is None:
                 # Discussion group attached to broadcast channel, can only get with ID
@@ -212,6 +209,14 @@ def get_input_chan_from_full_d(client: TelegramClient, full_chat_d: dict, key_na
             else:
                 input_peer = get_input_peer(client, username)
     return input_peer
+
+
+def get_usernames_from_chat_d(chat_d: dict) -> list[str]:
+    unames = [chat_d['username']] if chat_d['username'] is not None else []
+    if chat_d.get('usernames'):
+        # Happens for channels with multiple usernames (see "@deepfaker")
+        unames = unames + [u['username'] for u in chat_d['usernames'] if u['active']]
+    return unames
 
 
 def content_count(client: TelegramClient, channel: TypeInputChannel, content_type: str):
