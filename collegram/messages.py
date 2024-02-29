@@ -109,18 +109,18 @@ def save_channel_messages(
     fs: AbstractFileSystem = LOCAL_FS,
 ):
     """
-    dt_to exclusive
+    offset_id: messages with ID superior to `offset_id` will be retrieved
     """
     # Telethon docs are misleading, `offset_date` is in fact a datetime.
     with fs.open(messages_save_path, "a") as f:
         for message in client.iter_messages(
-            entity=channel, offset_date=dt_to, offset_id=offset_id
+            entity=channel, offset_date=dt_from, offset_id=offset_id, reverse=True,
         ):
             message_id = message.id
             # Take messages in until we've gone further than `date_until` in the past
             # (works because HistoryRequest gets messages in reverse chronological order
             # by default)
-            if message.date >= dt_from:
+            if message.date <= dt_to:
                 preprocessed_m = preprocess(
                     message,
                     forwards_set,

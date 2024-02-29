@@ -148,8 +148,8 @@ if __name__ == '__main__':
                         # Get the offset in case collection was unexpectedly interrupted
                         # while writing for this time range.
                         last_message_saved = collegram.utils.read_nth_to_last_line(messages_save_path)
+                        # Check if not empty file before reading message
                         if last_message_saved:
-                            # Check if not empty file before reading message
                             offset_id = collegram.json.read_message(last_message_saved).id
 
                     all_media_dict = {'photos': {}, 'documents': {}}
