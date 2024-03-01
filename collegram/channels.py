@@ -452,6 +452,15 @@ def save(chan_data: dict, project_paths: ProjectPaths, key_name: str, fs: Abstra
         json.dump(chan_data, f)
 
 
+def load(anon_id: str, project_paths: ProjectPaths, fs: AbstractFileSystem = LOCAL_FS) -> dict:
+    chan_paths = ChannelPaths(anon_id, project_paths)
+    save_path = str(chan_paths.channel)
+    full_chat_d = (
+        json.loads(fs.open(save_path, "r").read()) if fs.exists(save_path) else {}
+    )
+    return full_chat_d
+
+
 DISCARDED_CHAN_FULL_FIELDS = (
     "_",
     "notify_settings",
