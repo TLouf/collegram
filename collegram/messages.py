@@ -117,9 +117,9 @@ def save_channel_messages(
             entity=channel, offset_date=dt_from, offset_id=offset_id, reverse=True,
         ):
             message_id = message.id
-            # Take messages in until we've gone further than `date_until` in the past
-            # (works because HistoryRequest gets messages in reverse chronological order
-            # by default)
+            # Take messages in until we've reached `dt_to` (works because
+            # `iter_messages` gets messages in reverse chronological order by default,
+            # and we reversed it)
             if message.date <= dt_to:
                 preprocessed_m = preprocess(
                     message,
