@@ -131,6 +131,59 @@ def read_nth_to_last_line(path, fs: fsspec.AbstractFileSystem = LOCAL_FS, n=1):
 def get_last_modif_time(fpath: Path) -> datetime.datetime:
     return datetime.datetime.fromtimestamp(fpath.lstat().st_mtime)
 
+
+def safe_dict_update(dict1, dict2, paths: list[str]):
+    '''
+    Allows to update `dict1` from `dict2` while preserving dict / list entries found in
+    paths `paths`.
+
+    Assumptions:
+    - last part is always assumed to be accessing a dict key
+    - paths exist at least until penultimate part in both dicts.
+    '''
+    dict_out = {**dict1, **dict2}
+    for p in paths:
+        parts = p.split('.')
+        obj_out = dict_out
+        obj1 = dict1
+        deeper_obj_out = follow_path(obj_out, parts[0])
+        deeper_obj1 = follow_path(obj1, parts[0])
+        if len(parts) > 1:
+            for part in parts[1:]:
+                obj_out = deeper_obj_out
+                obj1 = deeper_obj1
+                deeper_obj_out = follow_path(obj_out, part)
+                deeper_obj1 = follow_path(obj1, part)
+        if deeper_obj_out is None:
+            # If `deeper_obj_out` has been set, it has priority, otherwise:
+            obj_out[part[-1]] = deeper_obj1
+        elif isinstance(deeper_obj_out, dict) and isinstance(deeper_obj1, dict):
+            obj_out[part[-1]] = {**deeper_obj1, **deeper_obj_out}
+        elif isinstance(deeper_obj_out, list) and isinstance(deeper_obj1, list):
+            obj_out[part[-1]] = deeper_obj1 + [x for x in deeper_obj_out if x not in deeper_obj1]
+        elif deeper_obj1 is not None and type(deeper_obj_out) != type(deeper_obj1):
+            raise ValueError('Types not matching at provided paths')
+    return dict_out
+
+
+def follow_path(obj: list | dict, part: str):
+    if part.isdigit():
+        try:
+            obj_out = obj[int(part)]
+        except IndexError:
+            obj_out = None
+    elif ':' in part:
+        # For instance, take the dict in which 'id' is 'x': encoded as 'id:x'
+        key, value = part.split(':')
+        for d in obj:
+            if d.get(key) == value or isinstance(value, str) and value.isdigit() and d.get(key) == int(value):
+                return d
+        obj_out = None
+    else:
+        obj_out = obj.get(part)
+    return obj_out
+
+
 PY_PL_DTYPES_MAP = defaultdict(
     lambda: pl.Null,
     {
