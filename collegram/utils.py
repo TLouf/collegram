@@ -133,7 +133,7 @@ def get_last_modif_time(fpath: Path) -> datetime.datetime:
     return datetime.datetime.fromtimestamp(fpath.lstat().st_mtime)
 
 
-def safe_dict_update(dict1, dict2, paths: list[str]):
+def safe_dict_update(dict1, dict2, paths: list[str], list_entries_are_unique=False):
     '''
     Allows to update `dict1` from `dict2` while preserving dict / list entries found in
     paths `paths`.
@@ -162,7 +162,7 @@ def safe_dict_update(dict1, dict2, paths: list[str]):
         elif isinstance(deeper_obj_out, dict) and isinstance(deeper_obj1, dict):
             obj_out[part[-1]] = {**deeper_obj1, **deeper_obj_out}
         elif isinstance(deeper_obj_out, list) and isinstance(deeper_obj1, list):
-            obj_out[part[-1]] = deeper_obj1 + [x for x in deeper_obj_out if x not in deeper_obj1]
+            obj_out[part[-1]] = deeper_obj1 + [x for x in deeper_obj_out if not list_entries_are_unique or x not in deeper_obj1]
         elif deeper_obj1 is not None and type(deeper_obj_out) != type(deeper_obj1):
             raise ValueError('Types not matching at provided paths')
     return dict_out
