@@ -109,7 +109,7 @@ class HMAC_anonymiser:
 
 
 def read_nth_to_last_line(path, fs: fsspec.AbstractFileSystem = LOCAL_FS, n=1):
-    """Returns the nth before last line of a file (n=1 gives last line)
+    """Returns the nth to last line of a file (n=1 gives last line)
 
     https://stackoverflow.com/questions/46258499/how-to-read-the-last-line-of-a-file-in-python
     """
@@ -129,6 +129,7 @@ def read_nth_to_last_line(path, fs: fsspec.AbstractFileSystem = LOCAL_FS, n=1):
 
 
 def get_last_modif_time(fpath: Path) -> datetime.datetime:
+    # TODO: cannot be used with any fs!!
     return datetime.datetime.fromtimestamp(fpath.lstat().st_mtime)
 
 
@@ -139,7 +140,6 @@ def safe_dict_update(dict1, dict2, paths: list[str]):
 
     Assumptions:
     - last part is always assumed to be accessing a dict key
-    - paths exist at least until penultimate part in both dicts.
     '''
     dict_out = {**dict1, **dict2}
     for p in paths:
