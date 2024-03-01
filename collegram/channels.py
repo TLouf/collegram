@@ -105,7 +105,7 @@ def get_input_peer(
         peer = InputPeerChannel(channel_id, access_hash)
 
     # If we pass a username, `get_input_entity` will check if it exists, however it
-    # won't check anything if we pass it an ID. Thus why in that case we need to
+    # won't check anything if we pass it a peer. Thus why in that case we need to
     # manually check for existence with a `get_entity`.
     input_entity = client.get_input_entity(peer)
     if isinstance(channel_id, int) and check:
@@ -147,11 +147,7 @@ def get_full(
         channel_id = channel.id if isinstance(channel, Channel) else channel.channel_id
 
     anon_id = anonymiser.anonymise(channel_id)
-    chan_paths = ChannelPaths(anon_id, project_paths)
-    save_path = str(chan_paths.channel)
-    full_chat_d = (
-        json.loads(fs.open(save_path, "r").read()) if fs.exists(save_path) else {}
-    )
+    full_chat_d = load(anon_id, project_paths, fs)
 
     if force_query or not full_chat_d:
         # TODO: if key_name in access_hashes, use that, otherwise use username. if that
@@ -171,7 +167,15 @@ def get_full(
             logger.error(f"Passed identifier {channel_id} refers to a user.")
         elif input_chan:
             full_chat = client(GetFullChannelRequest(channel=input_chan))
-            full_chat_d = {**full_chat_d, **get_anoned_full_dict(full_chat, anonymiser)}
+            new_full_d = get_anoned_full_dict(full_chat, anonymiser)
+            # To avoid overwriting data in channels for which we passed a username, try
+            # to load once more here:
+            if isinstance(channel_id, str) and not channel_id.isdigit():
+                anon_id = anonymiser.anonymise(full_chat.full_chat.id)
+                full_chat_d = load(anon_id, project_paths, fs)
+
+            paths = [f"chats.id:{chat['id']}.access_hashes" for chat in new_full_d['chats']]
+            full_chat_d = collegram.utils.safe_dict_update(full_chat_d, new_full_d, paths)
             save(full_chat_d, project_paths, key_name, fs=fs)
     return full_chat, full_chat_d
 
