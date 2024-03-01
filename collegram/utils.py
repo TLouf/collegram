@@ -150,6 +150,8 @@ def safe_dict_update(dict1, dict2, paths: list[str]):
         deeper_obj1 = follow_path(obj1, parts[0])
         if len(parts) > 1:
             for part in parts[1:]:
+                if deeper_obj_out is None or deeper_obj1 is None:
+                    break
                 obj_out = deeper_obj_out
                 obj1 = deeper_obj1
                 deeper_obj_out = follow_path(obj_out, part)
