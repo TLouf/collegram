@@ -519,8 +519,8 @@ def flatten_dict(c: dict) -> tuple[dict, list | None]:
     last_queried_at = c.get("last_queried_at")
     flat_c["last_queried_at"] = (
         datetime.datetime.fromisoformat(last_queried_at)
-        if last_queried_at is not None
-        else None
+        if isinstance(last_queried_at, str)
+        else last_queried_at
     )
     flat_c["forwards_from"] = c.get("forwards_from")
     flat_c["recommended_channels"] = c.get("recommended_channels")
