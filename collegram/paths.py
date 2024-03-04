@@ -86,7 +86,11 @@ class ChannelPaths:
     project_paths: ProjectPaths
 
     def __post_init__(self):
-        root = self.project_paths.raw_data
-        self.anon_map = root / 'anon_maps' / f'{self.anon_channel_id}.json'
-        self.messages = root / 'messages' / self.anon_channel_id
-        self.channel = root / 'channels' / f'{self.anon_channel_id}.json'
+        raw = self.project_paths.raw_data
+        self.anon_map = raw / 'anon_maps' / f'{self.anon_channel_id}.json'
+        self.messages = raw / 'messages' / self.anon_channel_id
+        self.channel = raw / 'channels' / f'{self.anon_channel_id}.json'
+
+        interim = self.project_paths.interim_data
+        self.messages_table = interim / 'messages' / f'{self.anon_channel_id}.parquet'
+        self.messages_service_jsonl = interim / 'messages_service' / f'{self.anon_channel_id}.jsonl'
