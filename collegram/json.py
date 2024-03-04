@@ -64,7 +64,7 @@ class Message(MessageBase):
     reactions: Reactions | None = None
     from_id: Peer | None = None
     comments_msg_id: int | None = None
-    media: Media | None = None
+    media: MessageMediaTypes | None = None
     fwd_from: FwdFrom | None = None
     replies: Replies | None = None
     reply_to: ReplyHeader | None = None
@@ -79,11 +79,44 @@ class Peer(msgspec.Struct):
     chat_id: str | None = None
 
 
-class Media(msgspec.Struct):
-    _: str
-    document: MediaType | None = None
-    photo: MediaType | None = None
-    webpage: MediaType | None = None
+class MessageMediaBase(msgspec.Struct, tag_field="_"):
+    pass
+
+class MessageMediaPhoto(MessageMediaBase):
+    photo: MediaType
+
+class MessageMediaDocument(MessageMediaBase):
+    document: MediaType
+    video: bool | None = None
+    voice: bool | None = None
+
+class MessageMediaWebPage(MessageMediaBase):
+    webpage: MediaType
+
+ignored_media_structs = [
+    msgspec.defstruct(f"MessageMedia{name}", [], bases=(MessageMediaBase,))
+    for name in (
+        'Geo',
+        'Contact',
+        'Unsupported',
+        'Venue',
+        'Game',
+        'Invoice',
+        'GeoLive',
+        'Poll',
+        'Dice',
+        'Story',
+        'Giveaway'
+        'GiveawayResults',
+    )
+]
+
+MessageMediaTypes = Union[
+    tuple(
+        [MessageMediaPhoto, MessageMediaDocument, MessageMediaWebPage]
+        + ignored_media_structs
+    )
+]
 
 
 class MediaType(msgspec.Struct):
@@ -185,9 +218,25 @@ def messages_to_dict(messages: list[Message]):
 
         media = m.media
         if media is not None:
-            m_dict["media_type"].append(RELEVANT_MEDIA_TYPES.get(media._, "other"))
-            rel_media = media.webpage or media.document or media.photo
-            m_dict["media_id"].append(None if rel_media is None else rel_media.id)
+            # TODO: save media separately? like whole JSON / parquets of photos / videos
+            # / web pages / documents
+            if isinstance(media, MessageMediaPhoto):
+                m_dict["media_type"].append('photo')
+                m_dict["media_id"].append(media.photo.id)
+            elif isinstance(media, MessageMediaWebPage):
+                m_dict["media_type"].append('webpage')
+                m_dict["media_id"].append(media.webpage.id)
+            elif isinstance(media, MessageMediaDocument):
+                if media.video:
+                    m_dict["media_type"].append('video')
+                elif media.voice:
+                    m_dict["media_type"].append('voice')
+                else:
+                    m_dict["media_type"].append('document')
+                m_dict["media_id"].append(media.document.id)
+            else:
+                m_dict["media_type"].append("other")
+                m_dict["media_id"].append(None)
         else:
             m_dict["media_type"].append(None)
             m_dict["media_id"].append(None)
