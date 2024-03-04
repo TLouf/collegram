@@ -93,6 +93,7 @@ class MediaType(msgspec.Struct):
 class FwdFrom(msgspec.Struct):
     date: datetime.datetime | None
     from_id: Peer | None = None
+    channel_post: int | None = None
 
 
 class Replies(msgspec.Struct):
@@ -171,6 +172,7 @@ def messages_to_dict(messages: list[Message]):
         "fwd_from_date",
         "fwd_from_type",
         "fwd_from_id",
+        "fwd_from_msg_id",
         "nr_replies",
         "has_comments",
         "reactions",
@@ -206,6 +208,7 @@ def messages_to_dict(messages: list[Message]):
         fwd_from = m.fwd_from
         if fwd_from is not None:
             m_dict["fwd_from_date"].append(fwd_from.date)
+            m_dict["fwd_from_msg_id"].append(fwd_from.channel_post)
             if fwd_from.from_id is not None:
                 m_dict["fwd_from_type"].append(fwd_from.from_id._)
                 m_dict["fwd_from_id"].append(
@@ -216,6 +219,7 @@ def messages_to_dict(messages: list[Message]):
                 m_dict["fwd_from_id"].append(None)
         else:
             m_dict["fwd_from_date"].append(None)
+            m_dict["fwd_from_msg_id"].append(None)
             m_dict["fwd_from_type"].append(None)
             m_dict["fwd_from_id"].append(None)
 
