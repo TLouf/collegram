@@ -96,8 +96,8 @@ if __name__ == '__main__':
         for chat in listed_channel_full.chats:
             channel_id = chat.id
             anon_channel_id = anonymiser.anonymise(channel_id)
-            anon_map_save_path = paths.raw_data / 'anon_maps' / f"{anon_channel_id}.json"
-            anonymiser = collegram.utils.HMAC_anonymiser(save_path=anon_map_save_path)
+            chan_paths = collegram.paths.ChannelPaths(anon_channel_id, paths)
+            anonymiser = collegram.utils.HMAC_anonymiser(save_path=chan_paths.anon_map)
 
             if channel_id == listed_channel_full.full_chat.id:
                 channel_full = listed_channel_full
@@ -125,22 +125,20 @@ if __name__ == '__main__':
                 client, channel_full, channel_saved_data, anonymiser, channels_dir,
                 key_name, recommended_chans, **get_prio_kwargs,
             )
-            collegram.channels.save(channel_save_data, paths, key_name)
-            msgs_dir_path = paths.raw_data / 'messages' / f"{anon_channel_id}"
-            msgs_dir_path.mkdir(exist_ok=True, parents=True)
+            chan_paths.messages.mkdir(exist_ok=True, parents=True)
             media_save_path = paths.raw_data / 'media'
 
-            logger.info(f"reading/saving messages from/to {msgs_dir_path}")
+            logger.info(f"reading/saving messages from/to {chan_paths.messages}")
             dt_from = chat.date
             dt_from = dt_from.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             dt_bin_edges = pl.datetime_range(dt_from, global_dt_to, interval='1mo', eager=True, time_zone='UTC')
             fwd_chans_from_saved_msg = collegram.channels.recover_fwd_from_msgs(msgs_dir_path)
 
             forwarded_chans = {}
-            existing_files = list(msgs_dir_path.iterdir())
+            existing_files = list(chan_paths.messages.iterdir())
             for dt_from, dt_to in zip(dt_bin_edges[:-1], dt_bin_edges[1:]):
                 chunk_fwds = set()
-                messages_save_path = msgs_dir_path / f"{dt_from.date()}_to_{dt_to.date()}.jsonl"
+                messages_save_path = chan_paths.messages / f"{dt_from.date()}_to_{dt_to.date()}.jsonl"
                 is_last_saved_period = len(existing_files) > 0 and messages_save_path == existing_files[0]
                 if not messages_save_path.exists() or is_last_saved_period:
                     offset_id = 0
