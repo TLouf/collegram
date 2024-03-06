@@ -1,8 +1,5 @@
 import datetime
-import itertools
 import json
-import logging
-import logging.config
 import os
 from pathlib import Path
 from pprint import pprint
