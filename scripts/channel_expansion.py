@@ -121,10 +121,21 @@ if __name__ == '__main__':
             logger.info(f"priority {prio}, {channel_full.full_chat.participants_count} participants, {channel_full.full_chat.about}")
 
             recommended_chans = {}
-            channel_save_data = collegram.channels.get_extended_save_data(
-                client, channel_full, channel_saved_data, anonymiser, channels_dir,
+            channel_full_d = json.loads(channel_full.to_json())
+            channel_full_d = collegram.channels.get_extended_save_data(
+                client, chat, channel_full_d, anonymiser, paths,
                 key_name, recommended_chans, **get_prio_kwargs,
             )
+            channel_full_d = collegram.channels.anon_full_dict(
+                channel_full_d, anonymiser,
+            )
+            for key in ['recommended_channels', 'forwards_from']:
+                channel_full_d[key] = list(
+                    set(channel_full_d.get(key, [])).union(saved_channel_full_d.get(key, []))
+                )
+            collegram.channels.save(channel_full_d, paths, key_name)
+            input_chat = chat
+
             chan_paths.messages.mkdir(exist_ok=True, parents=True)
             media_save_path = paths.raw_data / 'media'
 
@@ -132,7 +143,6 @@ if __name__ == '__main__':
             dt_from = chat.date
             dt_from = dt_from.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             dt_bin_edges = pl.datetime_range(dt_from, global_dt_to, interval='1mo', eager=True, time_zone='UTC')
-            fwd_chans_from_saved_msg = collegram.channels.recover_fwd_from_msgs(msgs_dir_path)
 
             forwarded_chans = {}
             existing_files = list(chan_paths.messages.iterdir())
@@ -151,8 +161,9 @@ if __name__ == '__main__':
                             offset_id = collegram.json.read_message(last_message_saved).id
 
                     all_media_dict = {'photos': {}, 'documents': {}}
+                    # Save messages, don't get to avoid overflowing memory.
                     collegram.messages.save_channel_messages(
-                        client, chat, dt_from, dt_to, chunk_fwds, anonymiser.anonymise,
+                        client, input_chat, dt_from, dt_to, chunk_fwds, anonymiser.anonymise,
                         messages_save_path, all_media_dict, media_save_path, offset_id=offset_id
                     )
                     # collegram.media.download_from_dict(client, all_media_dict, paths.raw_data / 'media', only_photos=True)
@@ -172,40 +183,15 @@ if __name__ == '__main__':
                             full_chat_d, anonymiser, **get_prio_kwargs,
                         )
 
-            # Make message queries only when strictly necessary. If the channel was seen
-            # in new messages, no need to get it through `chans_fwd_msg_to_query`.
-            inverse_anon_map = anonymiser.inverse_anon_map
-            id_map_fwd_chans = {}
-            for c in fwd_chans_from_saved_msg.keys():
-                fwd_id = inverse_anon_map.get(c)
-                if fwd_id is not None:
-                    id_map_fwd_chans[int(fwd_id)] = c
-                else:
-                    logger.error(f"anon_map of {channel_id} is incomplete, {c} was not found.")
-
-            chans_to_recover = (
-                set(id_map_fwd_chans.keys())
-                 .difference(forwarded_chans.keys())
-            )
-            chans_fwd_msg_to_query = {}
-            for og_id in chans_to_recover:
-                hashed_id = id_map_fwd_chans[og_id]
-                chans_fwd_msg_to_query[og_id] = fwd_chans_from_saved_msg[hashed_id]
-
-            unseen_fwd_chans_from_saved_msgs = collegram.channels.fwd_from_msg_ids(
-                client, channels_dir, input_chat, chans_fwd_msg_to_query, anonymiser,
-                key_name, **get_prio_kwargs,
-            )
-
-            channel_save_data['forwards_from'] = [
-                anonymiser.anonymise(c, safe=True)
-                for c in set(forwarded_chans.keys()).union(id_map_fwd_chans.keys())
-            ]
-            anonymiser.save_map()
-            collegram.channels.save(channel_save_data, channels_dir, key_name)
+                    channel_full_d['forwards_from'] = {
+                        anonymiser.anonymise(c, safe=True)
+                        for c in set(forwarded_chans.keys())
+                    }.union(channel_full_d['forwards_from'])
+                    anonymiser.save_map()
+                    collegram.channels.save(channel_full_d, paths, key_name)
 
             # What new channels should we explore?
-            new_channels = {**new_channels, **forwarded_chans, **unseen_fwd_chans_from_saved_msgs, **recommended_chans}
+            new_channels = {**new_channels, **forwarded_chans, **recommended_chans}
             new_channels = {k: p for k, p in new_channels.items() if p < private_chans_priority}
             processed_channels.add(channel_id)
             nr_processed_channels += 1
