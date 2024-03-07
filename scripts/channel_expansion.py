@@ -144,6 +144,26 @@ if __name__ == '__main__':
             dt_bin_edges = pl.datetime_range(dt_from, global_dt_to, interval='1mo', eager=True, time_zone='UTC')
 
             forwarded_chans = {}
+            for fwd_anon_id in set(channel_full_d['forwarded_channels']):
+                fwd_id = anonymiser.inverse_anon_map.get(fwd_anon_id)
+                if fwd_id is None:
+                    logger.error(f"issue with anon map of {channel_id}")
+                    continue
+
+                try:
+                    _, full_chat_d = collegram.channels.get_full(
+                        client, paths, anonymiser, key_name,
+                        channel_id=fwd_id,
+                    )
+                except ChannelPrivateError:
+                    # These channels are valid and have been seen for sure,
+                    # might be private though.
+                    full_chat_d = {}
+
+                forwarded_chans[fwd_id] = collegram.channels.get_explo_priority(
+                    full_chat_d, anonymiser, **get_prio_kwargs,
+                )
+
             existing_files = list(chan_paths.messages.iterdir())
             for dt_from, dt_to in zip(dt_bin_edges[:-1], dt_bin_edges[1:]):
                 chunk_fwds = set()
