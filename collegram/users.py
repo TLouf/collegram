@@ -31,7 +31,7 @@ def get_channel_participants(
     return participants
 
 
-def anon_user_d(user_d, anon_func):
+def anon_user_d(user_d: dict, anon_func):
     for field in ("first_name", "last_name", "username", "phone", "photo"):
         user_d[field] = None
     user_d['id'] = anon_func(user_d['id'])

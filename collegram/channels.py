@@ -420,8 +420,8 @@ def get_extended_save_data(
     ]
 
     channel_save_data['users'] =  [
-        collegram.users.anon_user_d(json.loads(u.to_json()), anonymiser.anonymise)
-        for u in channel_save_data.get('users', [])
+        collegram.users.anon_user_d(u_d, anonymiser.anonymise)
+        for u_d in channel_save_data.get('users', [])
     ]
 
     channel_save_data['recommended_channels'] = []
