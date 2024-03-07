@@ -46,7 +46,8 @@ class HMAC_anonymiser:
         if key is None:
             key = os.environ[key_env_var_name]
         if isinstance(key, str):
-            self.key = bytes.fromhex(key)
+            key = bytes.fromhex(key)
+        self.key = key
         self.anon_map: bidict[str, str] = bidict() if anon_map is None else anon_map
         self.save_path = save_path
         self.fs = fs
