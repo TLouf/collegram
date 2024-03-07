@@ -37,7 +37,7 @@ class UniquePriorityQueue(PriorityQueue):
 class HMAC_anonymiser:
     def __init__(
         self,
-        key: str | None = None,
+        key: str | bytes | None = None,
         key_env_var_name: str = "HMAC_KEY",
         anon_map: bidict | None = None,
         save_path: Path | None = None,
@@ -45,7 +45,8 @@ class HMAC_anonymiser:
     ):
         if key is None:
             key = os.environ[key_env_var_name]
-        self.key = bytes.fromhex(key)
+        if isinstance(key, str):
+            self.key = bytes.fromhex(key)
         self.anon_map: bidict[str, str] = bidict() if anon_map is None else anon_map
         self.save_path = save_path
         self.fs = fs
