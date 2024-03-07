@@ -12,15 +12,17 @@ from telethon.tl.types import ChannelParticipantsSearch, TypeInputChannel, User
 from collegram.utils import PY_PL_DTYPES_MAP
 
 if typing.TYPE_CHECKING:
+    from typing import Iterable
+
     from telethon import TelegramClient
     from telethon.tl.types import Channel
 
 logger = logging.getLogger(__name__)
 
 
-def get_channel_users(
-    client: TelegramClient, channel: TypeInputChannel, anon_func
-) -> list[User]:
+def get_channel_participants(
+    client: TelegramClient, channel: TypeInputChannel,
+) -> Iterable[User]:
     """
     We're missing the bio here, can be obtained with GetFullUserRequest
     """
@@ -29,15 +31,14 @@ def get_channel_users(
     except ChatAdminRequiredError:
         logger.warning(f"No access to participants of {channel}")
         participants = []
+    return participants
 
-    users = []
-    for p in participants:
-        # We completely anonymise the following fields:
-        for field in ("first_name", "last_name", "username", "phone", "photo"):
-            setattr(p, field, None)
-        p.id = anon_func(p.id)
-        users.append(p)
-    return users
+
+def anon_user_d(user_d, anon_func):
+    for field in ("first_name", "last_name", "username", "phone", "photo"):
+        user_d[field] = None
+    user_d['id'] = anon_func(user_d['id'])
+    return user_d
 
 
 CHANGED_USER_FIELDS = {"id": pl.Utf8}

@@ -408,11 +408,21 @@ def get_extended_save_data(
     recommended_chans_prios: dict | None = None,
     **explo_prio_kwargs,
 ):
-    users_list = collegram.users.get_channel_users(
-        client, chat, anonymiser.anonymise
-    ) if channel_save_data['full_chat'].get('can_view_participants', False) else []
+    participants_iter = (
+        collegram.users.get_channel_participants(client, chat)
+        if channel_save_data['full_chat'].get('can_view_participants', False)
+        else []
+    )
 
-    channel_save_data['participants'] =  [json.loads(u.to_json()) for u in users_list]
+    channel_save_data['participants'] =  [
+        collegram.users.anon_user_d(json.loads(u.to_json()), anonymiser.anonymise)
+        for u in participants_iter
+    ]
+
+    channel_save_data['users'] =  [
+        collegram.users.anon_user_d(json.loads(u.to_json()), anonymiser.anonymise)
+        for u in channel_save_data.get('users', [])
+    ]
 
     channel_save_data['recommended_channels'] = []
     for c in get_recommended(client, chat):
