@@ -38,13 +38,15 @@ if __name__ == '__main__':
         session=str(paths.proj / f'{key_name}.session'), flood_sleep_threshold=24*3600,
         receive_updates=False, entity_cache_limit=10000,
     )
+    generic_anonymiser = collegram.utils.HMAC_anonymiser()
 
     channels_first_seed = json.loads((paths.interim_data / "channels_first_seed.json").read_text())
     channels_queue = collegram.utils.UniquePriorityQueue()
     for c_id, c_hash in channels_first_seed.items():
         anonymiser = collegram.utils.HMAC_anonymiser()
         anon_id = anonymiser.anonymise(c_id)
-        anonymiser.save_path = paths.raw_data / 'anon_maps' / f"{anon_id}.json"
+        chan_paths = collegram.paths.ChannelPaths(anon_id, paths)
+        anonymiser.save_path = chan_paths.anon_map
         anonymiser.update_from_disk()
         try:
             _, full_chat_d = collegram.channels.get_full(
@@ -74,9 +76,9 @@ if __name__ == '__main__':
             'lang_priorities': lang_priorities,
             'private_chans_priority': private_chans_priority,
         }
-        if isinstance(channel_id, str) and channel_id.isdigit():
-            channel_id = int(channel_id)
-        anonymiser = collegram.utils.HMAC_anonymiser()
+        anon_channel_id = anonymiser.anonymise(channel_id)
+        chan_paths = collegram.paths.ChannelPaths(anon_channel_id, paths)
+        anonymiser = collegram.utils.HMAC_anonymiser(save_path=chan_paths.anon_map)
         try:
             listed_channel_full, listed_channel_full_d = collegram.channels.get_full(
                 client, paths, anonymiser, key_name,
@@ -176,14 +178,17 @@ if __name__ == '__main__':
                             # These channels are valid and have been seen for sure,
                             # might be private though.
                             full_chat_d = {}
+
                         forwarded_chans[i] = collegram.channels.get_explo_priority(
                             full_chat_d, anonymiser, **get_prio_kwargs,
                         )
 
-                    channel_full_d['forwards_from'] = {
-                        anonymiser.anonymise(c, safe=True)
-                        for c in set(forwarded_chans.keys())
-                    }.union(channel_full_d['forwards_from'])
+                    channel_full_d['forwards_from'] = list(
+                        {
+                            anonymiser.anonymise(c, safe=True)
+                            for c in set(forwarded_chans.keys())
+                        }.union(channel_full_d['forwards_from'])
+                    )
                     anonymiser.save_map()
                     collegram.channels.save(channel_full_d, paths, key_name)
 
