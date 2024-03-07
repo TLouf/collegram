@@ -144,7 +144,7 @@ if __name__ == '__main__':
             dt_bin_edges = pl.datetime_range(dt_from, global_dt_to, interval='1mo', eager=True, time_zone='UTC')
 
             forwarded_chans = {}
-            for fwd_anon_id in set(channel_full_d['forwarded_channels']):
+            for fwd_anon_id in set(channel_full_d['forwards_from']):
                 fwd_id = anonymiser.inverse_anon_map.get(fwd_anon_id)
                 if fwd_id is None:
                     logger.error(f"issue with anon map of {channel_id}")
