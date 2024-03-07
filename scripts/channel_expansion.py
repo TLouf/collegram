@@ -67,25 +67,25 @@ if __name__ == '__main__':
     nr_processed_channels = 0
     while not channels_queue.empty():
         # First we get the encompassing full channel, to then read all of its chats.
-        prio, channel_identifier = channels_queue.get()
+        prio, channel_id = channels_queue.get()
         get_prio_kwargs = {
             'parent_priority': prio,
             'lang_detector': lang_detector,
             'lang_priorities': lang_priorities,
             'private_chans_priority': private_chans_priority,
         }
-        if isinstance(channel_identifier, str) and channel_identifier.isdigit():
-            channel_identifier = int(channel_identifier)
+        if isinstance(channel_id, str) and channel_id.isdigit():
+            channel_id = int(channel_id)
         anonymiser = collegram.utils.HMAC_anonymiser()
         try:
             listed_channel_full, listed_channel_full_d = collegram.channels.get_full(
                 client, paths, anonymiser, key_name,
-                channel_id=channel_identifier, force_query=True,
+                channel_id=channel_id, force_query=True,
             )
         except (ChannelInvalidError, ChannelPrivateError, UsernameInvalidError, ValueError):
             # For all but ChannelPrivateError, can try with another key (TODO: add to
             # list of new channels?).
-            logger.warning(f"could not get data for listed channel {channel_identifier}")
+            logger.warning(f"could not get data for listed channel {channel_id}")
             nr_remaining_channels -= 1
             continue
 
