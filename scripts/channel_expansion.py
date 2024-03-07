@@ -160,7 +160,7 @@ if __name__ == '__main__':
                     # might be private though.
                     full_chat_d = {}
 
-                forwarded_chans[fwd_id] = collegram.channels.get_explo_priority(
+                forwarded_chans[int(fwd_id)] = collegram.channels.get_explo_priority(
                     full_chat_d, anonymiser, **get_prio_kwargs,
                 )
 

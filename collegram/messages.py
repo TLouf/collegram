@@ -99,7 +99,7 @@ def save_channel_messages(
     channel: TypeInputChannel,
     dt_from: datetime.datetime,
     dt_to: datetime.datetime,
-    forwards_set: set,
+    forwards_set: set[int],
     anon_func,
     messages_save_path,
     media_dict: MediaDictType,
@@ -166,7 +166,7 @@ def get_channel_messages_count(
 
 def preprocess(
     message: Message | MessageService,
-    forwards_set: set,
+    forwards_set: set[int],
     anon_func,
     media_dict: MediaDictType,
     media_save_path: Path,
@@ -230,7 +230,7 @@ def preprocess_entities(message: ExtendedMessage, anon_func) -> ExtendedMessage:
 
 
 def anonymise_metadata(
-    message: ExtendedMessage | MessageService, forwards_set: set, anon_func
+    message: ExtendedMessage | MessageService, forwards_set: set[int], anon_func
 ):
     message = anonymise_opt_peer(message, "peer_id", anon_func)
     message = anonymise_opt_peer(message, "from_id", anon_func)
