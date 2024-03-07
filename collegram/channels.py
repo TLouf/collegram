@@ -368,8 +368,14 @@ def anon_full_dict(full_dict: dict, anonymiser: HMAC_anonymiser, safe=True):
     full_channel["migrated_from_chat_id"] = anon_func(
         full_channel["migrated_from_chat_id"], safe=safe
     )
-    if 'recommended_channels' in full_channel:
-        full_channel['recommended_channels'] = list(map(anon_func, full_channel['recommended_channels']))
+    if 'recommended_channels' in full_dict:
+        full_dict['recommended_channels'] = list(map(anon_func, full_dict['recommended_channels']))
+
+    user_anon_func = lambda d: collegram.users.anon_user_d(d, anon_func)
+    full_dict['users'] = list(map(user_anon_func, full_dict.get('users', [])))
+    if 'participants' in full_dict:
+        full_dict['participants'] =  list(map(user_anon_func, full_dict['participants']))
+
     anonymiser.save_map()
     return full_dict
 
@@ -405,7 +411,7 @@ def get_extended_save_data(
     anonymiser,
     project_paths: ProjectPaths,
     key_name: str,
-    recommended_chans_prios: dict | None = None,
+    recommended_chans_prios: dict[int, int] | None = None,
     **explo_prio_kwargs,
 ):
     participants_iter = (
@@ -414,15 +420,7 @@ def get_extended_save_data(
         else []
     )
 
-    channel_save_data['participants'] =  [
-        collegram.users.anon_user_d(json.loads(u.to_json()), anonymiser.anonymise)
-        for u in participants_iter
-    ]
-
-    channel_save_data['users'] =  [
-        collegram.users.anon_user_d(u_d, anonymiser.anonymise)
-        for u_d in channel_save_data.get('users', [])
-    ]
+    channel_save_data['participants'] =  [json.loads(u.to_json()) for u in participants_iter]
 
     channel_save_data['recommended_channels'] = []
     for c in get_recommended(client, chat):
