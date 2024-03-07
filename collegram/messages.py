@@ -48,7 +48,6 @@ if TYPE_CHECKING:
     from fsspec import AbstractFileSystem
     from telethon import TelegramClient
     from telethon.tl.types import (
-        Channel,
         TypeInputChannel,
         TypeMessagesFilter,
         TypePeer,

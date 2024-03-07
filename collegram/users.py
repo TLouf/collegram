@@ -4,10 +4,8 @@ import logging
 import typing
 
 import polars as pl
-import telethon.sync
 from telethon.errors import ChatAdminRequiredError
-from telethon.tl.functions.channels import GetParticipantsRequest
-from telethon.tl.types import ChannelParticipantsSearch, TypeInputChannel, User
+from telethon.tl.types import TypeInputChannel, User
 
 from collegram.utils import PY_PL_DTYPES_MAP
 
@@ -15,7 +13,6 @@ if typing.TYPE_CHECKING:
     from typing import Iterable
 
     from telethon import TelegramClient
-    from telethon.tl.types import Channel
 
 logger = logging.getLogger(__name__)
 
