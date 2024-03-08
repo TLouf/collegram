@@ -15,7 +15,7 @@ from bidict import bidict
 if TYPE_CHECKING:
     from pathlib import Path
 
-LOCAL_FS = fsspec.filesystem("local")
+LOCAL_FS: fsspec.AbstractFileSystem = fsspec.filesystem("local")
 
 
 class UniquePriorityQueue(PriorityQueue):
@@ -130,9 +130,8 @@ def read_nth_to_last_line(path, fs: fsspec.AbstractFileSystem = LOCAL_FS, n=1):
     return last_line
 
 
-def get_last_modif_time(fpath: Path) -> datetime.datetime:
-    # TODO: cannot be used with any fs!!
-    return datetime.datetime.fromtimestamp(fpath.lstat().st_mtime)
+def get_last_modif_time(fpath: Path, fs: fsspec.AbstractFileSystem = LOCAL_FS) -> datetime.datetime:
+    return fs.modified(fpath)
 
 
 def safe_dict_update(dict1, dict2, paths: list[str], list_entries_are_unique=False):
