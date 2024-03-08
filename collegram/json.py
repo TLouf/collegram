@@ -202,6 +202,7 @@ def messages_to_dict(messages: list[Message]):
         "from_type",
         "from_id",
         "replies_to_msg_id",
+        "replies_to_chan_id",
         "fwd_from_date",
         "fwd_from_type",
         "fwd_from_id",
