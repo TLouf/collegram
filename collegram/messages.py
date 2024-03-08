@@ -115,7 +115,6 @@ def save_channel_messages(
         for message in client.iter_messages(
             entity=channel, offset_date=dt_from, offset_id=offset_id, reverse=True,
         ):
-            message_id = message.id
             # Take messages in until we've reached `dt_to` (works because
             # `iter_messages` gets messages in reverse chronological order by default,
             # and we reversed it)
@@ -130,18 +129,6 @@ def save_channel_messages(
                 )
                 f.write(preprocessed_m.to_json())
                 f.write("\n")
-                for comm in yield_comments(client, channel, message):
-                    preprocessed_comm = preprocess(
-                        comm,
-                        forwards_set,
-                        anon_func,
-                        media_dict,
-                        media_save_path,
-                        fs=fs,
-                    )
-                    preprocessed_comm.comments_msg_id = message_id
-                    f.write(preprocessed_comm.to_json())
-                    f.write("\n")
             else:
                 break
 
@@ -325,12 +312,10 @@ class ExtendedMessage(Message):
     def from_message(
         cls,
         message: Message,
-        comments_msg_id: int | None = None,
         text_urls: set[str] | None = None,
         text_mentions: set[str] | None = None,
     ):
         instance = cls(*[getattr(message, a) for a in MESSAGE_INIT_ARGS])
-        instance.comments_msg_id = comments_msg_id
         instance.text_urls = set() if text_urls is None else text_urls
         instance.text_mentions = set() if text_mentions is None else text_mentions
         return instance
@@ -338,7 +323,6 @@ class ExtendedMessage(Message):
     def to_dict(self):
         # Anything that is added here will be saved, as this is called by `to_json`
         d = super().to_dict()
-        d["comments_msg_id"] = self.comments_msg_id
         # Cast to list for JSON serialisation:
         d["text_urls"] = list(self.text_urls)
         d["text_mentions"] = list(self.text_mentions)

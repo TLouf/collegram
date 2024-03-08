@@ -63,7 +63,7 @@ class Message(MessageBase):
     edit_date: datetime.datetime | None = None
     reactions: Reactions | None = None
     from_id: Peer | None = None
-    comments_msg_id: int | None = None
+    comments_msg_id: int | None = None # DEPRECATED
     media: MessageMediaTypes | None = None
     fwd_from: FwdFrom | None = None
     replies: Replies | None = None
@@ -136,6 +136,7 @@ class Replies(msgspec.Struct):
 
 class ReplyHeader(msgspec.Struct):
     reply_to_msg_id: int | None = None
+    reply_to_peer_id: Peer | None = None
     forum_topic: bool | None = None
 
 
@@ -250,8 +251,9 @@ def messages_to_dict(messages: list[Message]):
             m_dict["from_type"].append(None)
 
         reply_to = m.reply_to
-        m_dict["replies_to_msg_id"].append(
-            None if reply_to is None else reply_to.reply_to_msg_id
+        m_dict["replies_to_msg_id"].append(getattr(reply_to, "reply_to_msg_id", None))
+        m_dict["replies_to_chan_id"].append(
+            None if reply_to is None else getattr(reply_to.reply_to_peer_id, "channel_id", None)
         )
 
         fwd_from = m.fwd_from
