@@ -42,7 +42,7 @@ if __name__ == '__main__':
                     # For backwards compatibility, ignore comments, marked with non-null
                     # `comments_msg_id.` Could also go back to historical raw data to
                     # remove all of these messages.
-                    if isinstance(m, collegram.json.Message) and m.comments_msg_id is not None:
+                    if isinstance(m, collegram.json.Message) and m.comments_msg_id is None:
                         messages.append(m)
                     else:
                         with open(chan_paths.messages_service_jsonl, 'ab') as f:
