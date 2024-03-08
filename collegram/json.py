@@ -106,7 +106,7 @@ ignored_media_structs = [
         'Poll',
         'Dice',
         'Story',
-        'Giveaway'
+        'Giveaway',
         'GiveawayResults',
     )
 ]
