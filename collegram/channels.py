@@ -389,16 +389,29 @@ def get_explo_priority(
     private_chans_priority: int,
 ):
     if fwd_full_chan_d:
-        lang = collegram.text.detect_chan_lang(
-            fwd_full_chan_d, anonymiser.inverse_anon_map, lang_detector
-        )
-        # Some channels may be from a relevant language, but detection was just not
-        # conclusive, so default shouldn't be too high.
-        lang_prio = lang_priorities.get(lang, 100)
-        # lang_prio is both increment and multiplicative factor, thus if some language has
-        # prio value N times superior, after exploring N of other language, it'l' be this
-        # language's turn.
-        prio = lang_prio * parent_priority + lang_prio
+        full = fwd_full_chan_d['full_chat']
+        chat = get_matching_chat_from_full(fwd_full_chan_d)
+        # This gives an overestimate of lifespan since the channel's last query time is
+        # necessarily before now, but doesn't matter much here since we want to avoid
+        # channels with `updates_per_part_per_day` at a certain order of magnitude.
+        lifespan = datetime.datetime.now(datetime.UTC) - datetime.datetime.fromisoformat(chat['date'])
+        updates_per_part_per_day = full['pts'] / (1 + full['participants_count'] * (1 + lifespan.days))
+        # We make following test to eliminate channels with huge number of messages and
+        # very few participants. Threshold set such that a channel with 100 participants
+        # can have up to 10 updates per day.
+        if updates_per_part_per_day > 0.1:
+            prio = private_chans_priority - 1
+        else:
+            lang = collegram.text.detect_chan_lang(
+                fwd_full_chan_d, anonymiser.inverse_anon_map, lang_detector
+            )
+            # Some channels may be from a relevant language, but detection was just not
+            # conclusive, so default shouldn't be too high.
+            lang_prio = lang_priorities.get(lang, 100)
+            # lang_prio is both increment and multiplicative factor, thus if some language has
+            # prio value N times superior, after exploring N of other language, it'l' be this
+            # language's turn.
+            prio = lang_prio * parent_priority + lang_prio
     else:
         prio = private_chans_priority
     return prio
