@@ -63,7 +63,6 @@ class Message(MessageBase):
     edit_date: datetime.datetime | None = None
     reactions: Reactions | None = None
     from_id: Peer | None = None
-    comments_msg_id: int | None = None # DEPRECATED
     media: MessageMediaTypes | None = None
     fwd_from: FwdFrom | None = None
     replies: Replies | None = None
