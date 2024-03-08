@@ -39,7 +39,10 @@ if __name__ == '__main__':
         for fpath in fs.glob(str(channel_dir / '*.jsonl')):
             if not saved or fs.modified(fpath) > last_saved_at:
                 for m in collegram.json.yield_message(fpath):
-                    if isinstance(m, collegram.json.Message):
+                    # For backwards compatibility, ignore comments, marked with non-null
+                    # `comments_msg_id.` Could also go back to historical raw data to
+                    # remove all of these messages.
+                    if isinstance(m, collegram.json.Message) and m.comments_msg_id is not None:
                         messages.append(m)
                     else:
                         with open(chan_paths.messages_service_jsonl, 'ab') as f:
