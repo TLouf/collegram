@@ -548,7 +548,7 @@ def flatten_dict(c: dict) -> tuple[dict, list | None]:
     flat_c["recommended_channels"] = c.get("recommended_channels")
     for content_type in collegram.messages.MESSAGE_CONTENT_TYPE_MAP.keys():
         count_key = f"{content_type}_count"
-        flat_c[count_key] = c.get("count_key")
+        flat_c[count_key] = c.get(count_key)
     flat_c["linked_chats_ids"] = [
         chat["id"] for chat in c["chats"] if chat["id"] != c["full_chat"]["id"]
     ]
