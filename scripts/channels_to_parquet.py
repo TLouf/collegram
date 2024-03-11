@@ -48,7 +48,7 @@ if __name__ == '__main__':
     if paths.channels_table.exists():
         table_saved_at = fs.modified(paths.channels_table)
         anon_chan_ids_to_add = set(filter(lambda i: has_been_modified_since(i, table_saved_at, paths ,fs), anon_chan_ids_to_add))
-        chans_df = pl.read_parquet(paths.channels_table).filter(~pl.col('id').is_in(anon_chan_ids_to_add))
+        chans_df = pl.read_parquet(fs.open(paths.channels_table, 'rb').read()).filter(~pl.col('id').is_in(anon_chan_ids_to_add))
     else:
         chans_df = pl.DataFrame(schema=chan_schema)
 

@@ -57,12 +57,9 @@ if __name__ == '__main__':
         m_df = pl.DataFrame(collegram.json.messages_to_dict(messages))
 
         if saved:
-            # TODO: switch to fsspec when https://github.com/pola-rs/polars/issues/14813
-            # is resolved. If not, `use_pyarrow=True`.
             m_df = pl.concat(
                 [
-                    pl.read_parquet(chan_paths.messages_table),
-                    # pl.LazyFrame._scan_parquet(fs.open(chan_paths.messages_table, 'rb')).collect(),
+                    pl.read_parquet(fs.open(chan_paths.messages_table, 'rb').read()),
                     m_df,
                 ],
                 how='diagonal',
