@@ -503,6 +503,7 @@ DISCARDED_CHAN_FULL_FIELDS = (
     "location",
     "recent_requesters",
     "pending_suggestions",
+    "wallpaper",
 )
 DISCARDED_CHAN_FIELDS = (
     "default_banned_rights",
@@ -511,6 +512,8 @@ DISCARDED_CHAN_FIELDS = (
     "color",
     "restriction_reason",
     "photo",
+    "emoji_status",
+    "profile_color",
 )
 CHANGED_CHAN_FIELDS = {
     "id": pl.Utf8,
