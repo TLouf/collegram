@@ -36,7 +36,7 @@ if __name__ == '__main__':
     client = collegram.client.connect(
         os.environ[f'{pre}API_ID'], os.environ[f'{pre}API_HASH'], os.environ[f"{pre}PHONE_NUMBER"],
         session=str(paths.proj / f'{key_name}.session'), flood_sleep_threshold=24*3600,
-        receive_updates=False, entity_cache_limit=10000,
+        receive_updates=False, entity_cache_limit=10000, request_retries=1000,
     )
     generic_anonymiser = collegram.utils.HMAC_anonymiser()
 
@@ -125,6 +125,10 @@ if __name__ == '__main__':
                 client, chat, channel_full_d, anonymiser, paths,
                 key_name, recommended_chans, **get_prio_kwargs,
             )
+            # yield here, or only do `get_extended_save_data`. to yield here, have to
+            # get rid of `chat` (premium querier should return fullchat JSON), load
+            # anonymiser, move get_anoned_full_dict out of get_extended_save_data and
+            # run it here below
             channel_full_d = collegram.channels.anon_full_dict(
                 channel_full_d, anonymiser,
             )
@@ -133,6 +137,17 @@ if __name__ == '__main__':
                     set(channel_full_d.get(key, [])).union(saved_channel_full_d.get(key, []))
                 )
             collegram.channels.save(channel_full_d, paths, key_name)
+            chat_d = collegram.channels.get_matching_chat_from_full(channel_full_d)
+            anon_channel_id = chat_d['id']
+            # try:
+            #     input_chat = collegram.channels.get_input_chan_from_full_d(
+            #         client, channel_full_d, key_name, channel_id,
+            #     )
+            # except (ChannelInvalidError, ChannelPrivateError, UsernameInvalidError, ValueError):
+            #     # Can be discussion group here, so include `ChannelInvalidError`.
+            #     logger.warning(f"could not get data for channel {channel_id}")
+            #     continue
+            # TODO: if want different keys to handle same channels, uncomment above and remove below:
             input_chat = chat
 
             chan_paths.messages.mkdir(exist_ok=True, parents=True)
@@ -164,11 +179,12 @@ if __name__ == '__main__':
                     full_chat_d, anonymiser, **get_prio_kwargs,
                 )
 
-            existing_files = list(chan_paths.messages.iterdir())
+            # Caution: the sorting only works because of file name format!
+            existing_files = sorted(list(chan_paths.messages.iterdir()))
             for dt_from, dt_to in zip(dt_bin_edges[:-1], dt_bin_edges[1:]):
                 chunk_fwds = set()
                 messages_save_path = chan_paths.messages / f"{dt_from.date()}_to_{dt_to.date()}.jsonl"
-                is_last_saved_period = len(existing_files) > 0 and messages_save_path == existing_files[0]
+                is_last_saved_period = len(existing_files) > 0 and messages_save_path == existing_files[-1]
                 if not messages_save_path.exists() or is_last_saved_period:
                     offset_id = 0
                     if is_last_saved_period:
