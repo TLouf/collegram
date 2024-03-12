@@ -22,6 +22,7 @@ if __name__ == "__main__":
 
     paths = collegram.paths.ProjectPaths()
     logger = setup.init_logging(paths.proj / "scripts" / __file__)
+    fpath_fwds_to_retrieve = paths.ext_data / 'fpath_fwds_to_retrieve.jsonl'
 
     # should always be strictly positive integers, since we want to avoid rabbit holes
     # very far away from initial seed and therefore increment based on parent priority
@@ -227,6 +228,14 @@ if __name__ == "__main__":
                     # These channels are valid and have been seen for sure,
                     # might be private though.
                     full_chat_d = {}
+                except ChannelInvalidError:
+                    # happens if chat's full was not saved to disk, and ID not present
+                    # in session file
+                    full_chat_d = {}
+                    logger.error(f"issue with saved forwards of {channel_id}")
+                    with open(fpath_fwds_to_retrieve, "a") as f:
+                        f.write(json.dumps({channel_id: fwd_id}))
+                        f.write("\n")
 
                 forwarded_chans[int(fwd_id)] = collegram.channels.get_explo_priority(
                     full_chat_d,
