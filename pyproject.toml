@@ -33,3 +33,9 @@ Issues = "https://github.com/TLouf/collegram/issues"
 
 [project.optional-dependencies]
 media = ["cryptg"]
+
+[tool.pdm.dev-dependencies]
+lint = [
+    "ruff>=0.3.2",
+    "pre-commit>=3.5.0",
+]
