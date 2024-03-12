@@ -181,10 +181,15 @@ def get_full(
 
 
 def get_input_chan_from_full_d(client: TelegramClient, full_chat_d: dict, key_name: str, channel_id: str | int | None = None, access_hash: int | None = None, inverse_anon_map: bidict | None = None):
-    # if ChannelPrivateError, logic outside to handle (can happen!)
-    # UsernameInvalidError, ValueError if (ID, access_hash) pair is invalid for that API key, and username has changed -> try other access_hash
-    # ChannelInvalidError if (ID, access_hash) pair is invalid and `inverse_anon_map` was not provided or no username (case for discussion groups)
-    # IndexError if ID is missing in inverse_anon_map
+    '''
+    - if ChannelPrivateError, logic outside to handle (can happen!)
+    - UsernameInvalidError, ValueError if (ID, access_hash) pair is invalid for that API
+      key, and username has changed -> try other access_hash
+    - ChannelInvalidError if (ID, access_hash) pair is invalid and `inverse_anon_map`
+      was not provided, or no username (case for discussion groups), or chan ID saved in
+      recommended or forwarded, but full_chat_d was not
+    - IndexError if ID is missing in inverse_anon_map
+    '''
     if channel_id is None and inverse_anon_map is None:
         raise ValueError('must pass either original channel_id or an inverse_anon_map')
 
@@ -201,9 +206,7 @@ def get_input_chan_from_full_d(client: TelegramClient, full_chat_d: dict, key_na
     try:
         input_peer = get_input_peer(client, channel_id, access_hash)
     except ChannelInvalidError as e:
-        if inverse_anon_map is None:
-            raise e
-        elif full_chat_d:
+        if full_chat_d and inverse_anon_map is not None:
             unames = get_usernames_from_chat_d(chat)
             uname = None if len(unames) == 0 else unames[0]
             username = inverse_anon_map.get(uname)
@@ -212,6 +215,8 @@ def get_input_chan_from_full_d(client: TelegramClient, full_chat_d: dict, key_na
                 raise e
             else:
                 input_peer = get_input_peer(client, username)
+        else:
+            raise e
     return input_peer
 
 
