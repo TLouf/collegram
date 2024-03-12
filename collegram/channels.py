@@ -514,6 +514,7 @@ DISCARDED_CHAN_FIELDS = (
     "photo",
     "emoji_status",
     "profile_color",
+    "access_hashes",
 )
 CHANGED_CHAN_FIELDS = {
     "id": pl.Utf8,
