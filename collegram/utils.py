@@ -55,12 +55,10 @@ class HMAC_anonymiser:
             self.update_from_disk()
 
     @overload
-    def anonymise(self, data: int | str, safe: bool = False) -> str:
-        ...
+    def anonymise(self, data: int | str, safe: bool = False) -> str: ...
 
     @overload
-    def anonymise(self, data: None, safe: bool = False) -> None:
-        ...
+    def anonymise(self, data: None, safe: bool = False) -> None: ...
 
     def anonymise(self, data: int | str | None, safe: bool = False) -> str | None:
         """Anonymise the provided data.
@@ -99,7 +97,7 @@ class HMAC_anonymiser:
     def save_map(self, save_path: Path | None = None):
         save_path = save_path if save_path is not None else self.save_path
         if save_path is None:
-            raise ValueError('no save_path set or passed here.')
+            raise ValueError("no save_path set or passed here.")
         parent = str(save_path.parent)
         self.fs.mkdirs(parent, exist_ok=True)
         with self.fs.open(str(save_path), "w") as f:
@@ -130,21 +128,23 @@ def read_nth_to_last_line(path, fs: fsspec.AbstractFileSystem = LOCAL_FS, n=1):
     return last_line
 
 
-def get_last_modif_time(fpath: Path, fs: fsspec.AbstractFileSystem = LOCAL_FS) -> datetime.datetime:
+def get_last_modif_time(
+    fpath: Path, fs: fsspec.AbstractFileSystem = LOCAL_FS
+) -> datetime.datetime:
     return fs.modified(fpath)
 
 
 def safe_dict_update(dict1, dict2, paths: list[str], list_entries_are_unique=False):
-    '''
+    """
     Allows to update `dict1` from `dict2` while preserving dict / list entries found in
     paths `paths`.
 
     Assumptions:
     - last part is always assumed to be accessing a dict key
-    '''
+    """
     dict_out = {**dict1, **dict2}
     for p in paths:
-        parts = p.split('.')
+        parts = p.split(".")
         obj_out = dict_out
         obj1 = dict1
         deeper_obj_out = follow_path(obj_out, parts[0])
@@ -163,9 +163,13 @@ def safe_dict_update(dict1, dict2, paths: list[str], list_entries_are_unique=Fal
         elif isinstance(deeper_obj_out, dict) and isinstance(deeper_obj1, dict):
             obj_out[part[-1]] = {**deeper_obj1, **deeper_obj_out}
         elif isinstance(deeper_obj_out, list) and isinstance(deeper_obj1, list):
-            obj_out[part[-1]] = deeper_obj1 + [x for x in deeper_obj_out if not list_entries_are_unique or x not in deeper_obj1]
+            obj_out[part[-1]] = deeper_obj1 + [
+                x
+                for x in deeper_obj_out
+                if not list_entries_are_unique or x not in deeper_obj1
+            ]
         elif deeper_obj1 is not None and type(deeper_obj_out) != type(deeper_obj1):
-            raise ValueError('Types not matching at provided paths')
+            raise ValueError("Types not matching at provided paths")
     return dict_out
 
 
@@ -175,11 +179,16 @@ def follow_path(obj: list | dict, part: str):
             obj_out = obj[int(part)]
         except IndexError:
             obj_out = None
-    elif ':' in part:
+    elif ":" in part:
         # For instance, take the dict in which 'id' is 'x': encoded as 'id:x'
-        key, value = part.split(':')
+        key, value = part.split(":")
         for d in obj:
-            if d.get(key) == value or isinstance(value, str) and value.isdigit() and d.get(key) == int(value):
+            if (
+                d.get(key) == value
+                or isinstance(value, str)
+                and value.isdigit()
+                and d.get(key) == int(value)
+            ):
                 return d
         obj_out = None
     else:

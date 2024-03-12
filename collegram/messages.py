@@ -113,7 +113,10 @@ def save_channel_messages(
     # Telethon docs are misleading, `offset_date` is in fact a datetime.
     with fs.open(messages_save_path, "a") as f:
         for message in client.iter_messages(
-            entity=channel, offset_date=dt_from, offset_id=offset_id, reverse=True,
+            entity=channel,
+            offset_date=dt_from,
+            offset_id=offset_id,
+            reverse=True,
         ):
             # Take messages in until we've reached `dt_to` (works because
             # `iter_messages` gets messages in reverse chronological order by default,

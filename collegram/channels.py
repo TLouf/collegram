@@ -76,24 +76,29 @@ def search_from_tgdb(client: TelegramClient, query):
             entity = get_input_peer(client, username)
         except (ValueError, UsernameInvalidError, ChannelPrivateError):
             continue
-        if hasattr(entity, 'channel_id'):
+        if hasattr(entity, "channel_id"):
             id_access_hash_map[entity.channel_id] = entity.access_hash
     return id_access_hash_map
 
 
 def search_from_api(client: TelegramClient, query, limit=100):
-    return {c.id: c.access_hash for c in client(SearchRequest(q=query, limit=limit)).chats}
+    return {
+        c.id: c.access_hash for c in client(SearchRequest(q=query, limit=limit)).chats
+    }
 
 
 def get_input_peer(
-    client: TelegramClient, channel_id: str | int, access_hash: int | None = None, check: bool = True,
+    client: TelegramClient,
+    channel_id: str | int,
+    access_hash: int | None = None,
+    check: bool = True,
 ) -> InputPeerChannel:
-    '''
+    """
     Raises:
       - UsernameInvalidError or ValueError when username is wrong
       - ChannelInvalidError if wrong int ID / access_hash pair is passed and check is True
       - ChannelPrivateError if channel is private and check is True
-    '''
+    """
     if isinstance(channel_id, str) and channel_id.isdigit():
         channel_id = int(channel_id)
 
@@ -159,7 +164,12 @@ def get_full(
             input_chan = channel
         else:
             input_chan = get_input_chan_from_full_d(
-                client, full_chat_d, key_name, channel_id, access_hash, anonymiser.inverse_anon_map,
+                client,
+                full_chat_d,
+                key_name,
+                channel_id,
+                access_hash,
+                anonymiser.inverse_anon_map,
             )
         str_id_is_user = isinstance(input_chan, InputPeerUser)
         if input_chan and str_id_is_user:
@@ -174,14 +184,25 @@ def get_full(
                 anon_id = anonymiser.anonymise(full_chat.full_chat.id)
                 full_chat_d = load(anon_id, project_paths, fs)
 
-            paths = [f"chats.id:{chat['id']}.access_hashes" for chat in new_full_d['chats']]
-            full_chat_d = collegram.utils.safe_dict_update(full_chat_d, new_full_d, paths)
+            paths = [
+                f"chats.id:{chat['id']}.access_hashes" for chat in new_full_d["chats"]
+            ]
+            full_chat_d = collegram.utils.safe_dict_update(
+                full_chat_d, new_full_d, paths
+            )
             save(full_chat_d, project_paths, key_name, fs=fs)
     return full_chat, full_chat_d
 
 
-def get_input_chan_from_full_d(client: TelegramClient, full_chat_d: dict, key_name: str, channel_id: str | int | None = None, access_hash: int | None = None, inverse_anon_map: bidict | None = None):
-    '''
+def get_input_chan_from_full_d(
+    client: TelegramClient,
+    full_chat_d: dict,
+    key_name: str,
+    channel_id: str | int | None = None,
+    access_hash: int | None = None,
+    inverse_anon_map: bidict | None = None,
+):
+    """
     - if ChannelPrivateError, logic outside to handle (can happen!)
     - UsernameInvalidError, ValueError if (ID, access_hash) pair is invalid for that API
       key, and username has changed -> try other access_hash
@@ -189,19 +210,21 @@ def get_input_chan_from_full_d(client: TelegramClient, full_chat_d: dict, key_na
       was not provided, or no username (case for discussion groups), or chan ID saved in
       recommended or forwarded, but full_chat_d was not
     - IndexError if ID is missing in inverse_anon_map
-    '''
+    """
     if channel_id is None and inverse_anon_map is None:
-        raise ValueError('must pass either original channel_id or an inverse_anon_map')
+        raise ValueError("must pass either original channel_id or an inverse_anon_map")
 
     if full_chat_d:
         if channel_id is None and inverse_anon_map is not None:
-            anon_id = full_chat_d['full_chat']['id']
+            anon_id = full_chat_d["full_chat"]["id"]
             channel_id = inverse_anon_map[anon_id]
         if access_hash is None:
             chat = get_matching_chat_from_full(full_chat_d)
-            chashes = chat.get('access_hashes', {})
+            chashes = chat.get("access_hashes", {})
             chash = chat["access_hash"]
-            access_hash = chashes.get(key_name) or (chash if chash not in chashes.values() else None)
+            access_hash = chashes.get(key_name) or (
+                chash if chash not in chashes.values() else None
+            )
 
     try:
         input_peer = get_input_peer(client, channel_id, access_hash)
@@ -221,10 +244,10 @@ def get_input_chan_from_full_d(client: TelegramClient, full_chat_d: dict, key_na
 
 
 def get_usernames_from_chat_d(chat_d: dict) -> list[str]:
-    unames = [chat_d['username']] if chat_d['username'] is not None else []
-    if chat_d.get('usernames'):
+    unames = [chat_d["username"]] if chat_d["username"] is not None else []
+    if chat_d.get("usernames"):
         # Happens for channels with multiple usernames (see "@deepfaker")
-        unames = unames + [u['username'] for u in chat_d['usernames'] if u['active']]
+        unames = unames + [u["username"] for u in chat_d["usernames"] if u["active"]]
     return unames
 
 
@@ -240,27 +263,29 @@ def get_recommended(
 
 
 @typing.overload
-def get_matching_chat_from_full(full_chat: ChatFull, channel_id: int | None = None) -> Channel:
-    ...
+def get_matching_chat_from_full(
+    full_chat: ChatFull, channel_id: int | None = None
+) -> Channel: ...
 
 
 @typing.overload
-def get_matching_chat_from_full(full_chat: dict, channel_id: int | None = None) -> dict:
-    ...
+def get_matching_chat_from_full(
+    full_chat: dict, channel_id: int | None = None
+) -> dict: ...
 
 
-def get_matching_chat_from_full(full_chat: ChatFull | dict, channel_id: int | None = None) -> Channel | dict:
+def get_matching_chat_from_full(
+    full_chat: ChatFull | dict, channel_id: int | None = None
+) -> Channel | dict:
     if isinstance(full_chat, dict):
         get = lambda obj, s: obj.get(s)
     else:
         get = lambda obj, s: getattr(obj, s)
 
-    id_to_match = get(get(full_chat, "full_chat"), "id") if channel_id is None else channel_id
-    chat = [
-        c
-        for c in get(full_chat, "chats")
-        if get(c, "id") == id_to_match
-    ][0]
+    id_to_match = (
+        get(get(full_chat, "full_chat"), "id") if channel_id is None else channel_id
+    )
+    chat = [c for c in get(full_chat, "chats") if get(c, "id") == id_to_match][0]
     return chat
 
 
@@ -286,9 +311,9 @@ def recover_fwd_from_msgs(
                 if from_chan_id is not None:
                     chans_fwd_msg[from_chan_id] = {"id": m.id}
                     if m.reply_to is not None:
-                        chans_fwd_msg[from_chan_id][
-                            "reply_to"
-                        ] = m.reply_to.reply_to_msg_id
+                        chans_fwd_msg[from_chan_id]["reply_to"] = (
+                            m.reply_to.reply_to_msg_id
+                        )
 
     return chans_fwd_msg
 
@@ -316,8 +341,12 @@ def fwd_from_msg_ids(
         if fwd_from is not None:
             try:
                 fwd_id = m.fwd_from.from_id
-                new_chan_paths = ChannelPaths(anonymiser.anonymise(fwd_id), project_paths)
-                new_anon = HMAC_anonymiser(anonymiser.key, save_path=new_chan_paths.anon_map)
+                new_chan_paths = ChannelPaths(
+                    anonymiser.anonymise(fwd_id), project_paths
+                )
+                new_anon = HMAC_anonymiser(
+                    anonymiser.key, save_path=new_chan_paths.anon_map
+                )
                 _, fwd_full_chan_d = get_full(
                     client,
                     project_paths,
@@ -354,6 +383,7 @@ def get_anoned_full_dict(full_chat: ChatFull, anonymiser: HMAC_anonymiser, safe=
     channel_save_data = json.loads(full_chat.to_json())
     return anon_full_dict(channel_save_data, anonymiser, safe=safe)
 
+
 def anon_full_dict(full_dict: dict, anonymiser: HMAC_anonymiser, safe=True):
     anon_func = anonymiser.anonymise
     for c in full_dict["chats"]:
@@ -373,13 +403,15 @@ def anon_full_dict(full_dict: dict, anonymiser: HMAC_anonymiser, safe=True):
     full_channel["migrated_from_chat_id"] = anon_func(
         full_channel["migrated_from_chat_id"], safe=safe
     )
-    if 'recommended_channels' in full_dict:
-        full_dict['recommended_channels'] = list(map(anon_func, full_dict['recommended_channels']))
+    if "recommended_channels" in full_dict:
+        full_dict["recommended_channels"] = list(
+            map(anon_func, full_dict["recommended_channels"])
+        )
 
     user_anon_func = lambda d: collegram.users.anon_user_d(d, anon_func)
-    full_dict['users'] = list(map(user_anon_func, full_dict.get('users', [])))
-    if 'participants' in full_dict:
-        full_dict['participants'] =  list(map(user_anon_func, full_dict['participants']))
+    full_dict["users"] = list(map(user_anon_func, full_dict.get("users", [])))
+    if "participants" in full_dict:
+        full_dict["participants"] = list(map(user_anon_func, full_dict["participants"]))
 
     anonymiser.save_map()
     return full_dict
@@ -394,13 +426,17 @@ def get_explo_priority(
     private_chans_priority: int,
 ):
     if fwd_full_chan_d:
-        full = fwd_full_chan_d['full_chat']
+        full = fwd_full_chan_d["full_chat"]
         chat = get_matching_chat_from_full(fwd_full_chan_d)
         # This gives an overestimate of lifespan since the channel's last query time is
         # necessarily before now, but doesn't matter much here since we want to avoid
         # channels with `updates_per_part_per_day` at a certain order of magnitude.
-        lifespan = datetime.datetime.now(datetime.UTC) - datetime.datetime.fromisoformat(chat['date'])
-        updates_per_part_per_day = full['pts'] / (1 + full['participants_count'] * (1 + lifespan.days))
+        lifespan = datetime.datetime.now(
+            datetime.UTC
+        ) - datetime.datetime.fromisoformat(chat["date"])
+        updates_per_part_per_day = full["pts"] / (
+            1 + full["participants_count"] * (1 + lifespan.days)
+        )
         # We make following test to eliminate channels with huge number of messages and
         # very few participants. Threshold set such that a channel with 100 participants
         # can have up to 10 updates per day.
@@ -434,13 +470,15 @@ def get_extended_save_data(
 ):
     participants_iter = (
         collegram.users.get_channel_participants(client, chat)
-        if channel_save_data['full_chat'].get('can_view_participants', False)
+        if channel_save_data["full_chat"].get("can_view_participants", False)
         else []
     )
 
-    channel_save_data['participants'] =  [json.loads(u.to_json()) for u in participants_iter]
+    channel_save_data["participants"] = [
+        json.loads(u.to_json()) for u in participants_iter
+    ]
 
-    channel_save_data['recommended_channels'] = []
+    channel_save_data["recommended_channels"] = []
     for c in get_recommended(client, chat):
         # A priori, this `get_full` call is safe as `GetChannelRecommendationsRequest`
         # should only return public channels, and all these channels should be
@@ -448,42 +486,58 @@ def get_extended_save_data(
         new_chan_paths = ChannelPaths(anonymiser.anonymise(c.id), project_paths)
         new_anon = HMAC_anonymiser(anonymiser.key, save_path=new_chan_paths.anon_map)
         _, full_chat_d = get_full(
-            client, project_paths, new_anon, key_name, channel=c,
+            client,
+            project_paths,
+            new_anon,
+            key_name,
+            channel=c,
         )
         new_anon.save_map()
         if recommended_chans_prios is not None:
             recommended_chans_prios[c.id] = get_explo_priority(
                 full_chat_d, anonymiser, **explo_prio_kwargs
             )
-        channel_save_data['recommended_channels'].append(c.id)
+        channel_save_data["recommended_channels"].append(c.id)
     anonymiser.save_map()
 
     for content_type, f in collegram.messages.MESSAGE_CONTENT_TYPE_MAP.items():
         count = collegram.messages.get_channel_messages_count(client, chat, f)
         channel_save_data[f"{content_type}_count"] = count
 
-    channel_save_data['last_queried_at'] = datetime.datetime.now(datetime.UTC).isoformat()
+    channel_save_data["last_queried_at"] = datetime.datetime.now(
+        datetime.UTC
+    ).isoformat()
     return channel_save_data
 
 
-def save(chan_data: dict, project_paths: ProjectPaths, key_name: str | None, fs: AbstractFileSystem = LOCAL_FS):
-    anon_id = chan_data['full_chat']['id']
+def save(
+    chan_data: dict,
+    project_paths: ProjectPaths,
+    key_name: str | None,
+    fs: AbstractFileSystem = LOCAL_FS,
+):
+    anon_id = chan_data["full_chat"]["id"]
     chan_paths = ChannelPaths(anon_id, project_paths)
     channel_save_path = chan_paths.channel
     # Since `access_hash` is API-key-dependent, always add a key_name: access_hash
     # mapping in `access_hashes`.
     if key_name is not None:
-        for chat_d in chan_data['chats']:
-            access_hashes = chat_d.get('access_hashes', {})
-            if key_name not in access_hashes and chat_d['access_hash'] not in access_hashes.values():
-                access_hashes[key_name] = chat_d['access_hash']
-                chat_d['access_hashes'] = access_hashes
+        for chat_d in chan_data["chats"]:
+            access_hashes = chat_d.get("access_hashes", {})
+            if (
+                key_name not in access_hashes
+                and chat_d["access_hash"] not in access_hashes.values()
+            ):
+                access_hashes[key_name] = chat_d["access_hash"]
+                chat_d["access_hashes"] = access_hashes
     fs.mkdirs(str(channel_save_path.parent), exist_ok=True)
     with fs.open(str(channel_save_path), "w") as f:
         json.dump(chan_data, f)
 
 
-def load(anon_id: str, project_paths: ProjectPaths, fs: AbstractFileSystem = LOCAL_FS) -> dict:
+def load(
+    anon_id: str, project_paths: ProjectPaths, fs: AbstractFileSystem = LOCAL_FS
+) -> dict:
     chan_paths = ChannelPaths(anon_id, project_paths)
     save_path = str(chan_paths.channel)
     full_chat_d = (
@@ -608,11 +662,14 @@ def get_pl_schema():
     return chan_schema
 
 
-def erase(channel_paths: ChannelPaths, fs: AbstractFileSystem = LOCAL_FS,):
-    '''
+def erase(
+    channel_paths: ChannelPaths,
+    fs: AbstractFileSystem = LOCAL_FS,
+):
+    """
     Remove all data about channel from disk (for deleted channels or those who became
     private).
-    '''
+    """
     if fs.exists(channel_paths.anon_map):
         fs.rm(channel_paths.anon_map)
     if fs.exists(channel_paths.channel):

@@ -63,7 +63,7 @@ class Message(MessageBase):
     edit_date: datetime.datetime | None = None
     reactions: Reactions | None = None
     from_id: Peer | None = None
-    comments_msg_id: int | None = None # DEPRECATED
+    comments_msg_id: int | None = None  # DEPRECATED
     media: MessageMediaTypes | None = None
     fwd_from: FwdFrom | None = None
     replies: Replies | None = None
@@ -82,32 +82,36 @@ class Peer(msgspec.Struct):
 class MessageMediaBase(msgspec.Struct, tag_field="_"):
     pass
 
+
 class MessageMediaPhoto(MessageMediaBase):
     photo: MediaType
+
 
 class MessageMediaDocument(MessageMediaBase):
     document: MediaType
     video: bool | None = None
     voice: bool | None = None
 
+
 class MessageMediaWebPage(MessageMediaBase):
     webpage: MediaType
+
 
 ignored_media_structs = [
     msgspec.defstruct(f"MessageMedia{name}", [], bases=(MessageMediaBase,))
     for name in (
-        'Geo',
-        'Contact',
-        'Unsupported',
-        'Venue',
-        'Game',
-        'Invoice',
-        'GeoLive',
-        'Poll',
-        'Dice',
-        'Story',
-        'Giveaway',
-        'GiveawayResults',
+        "Geo",
+        "Contact",
+        "Unsupported",
+        "Venue",
+        "Game",
+        "Invoice",
+        "GeoLive",
+        "Poll",
+        "Dice",
+        "Story",
+        "Giveaway",
+        "GiveawayResults",
     )
 ]
 
@@ -223,18 +227,18 @@ def messages_to_dict(messages: list[Message]):
             # TODO: save media separately? like whole JSON / parquets of photos / videos
             # / web pages / documents
             if isinstance(media, MessageMediaPhoto):
-                m_dict["media_type"].append('photo')
+                m_dict["media_type"].append("photo")
                 m_dict["media_id"].append(media.photo.id)
             elif isinstance(media, MessageMediaWebPage):
-                m_dict["media_type"].append('webpage')
+                m_dict["media_type"].append("webpage")
                 m_dict["media_id"].append(media.webpage.id)
             elif isinstance(media, MessageMediaDocument):
                 if media.video:
-                    m_dict["media_type"].append('video')
+                    m_dict["media_type"].append("video")
                 elif media.voice:
-                    m_dict["media_type"].append('voice')
+                    m_dict["media_type"].append("voice")
                 else:
-                    m_dict["media_type"].append('document')
+                    m_dict["media_type"].append("document")
                 m_dict["media_id"].append(media.document.id)
             else:
                 m_dict["media_type"].append("other")
@@ -254,7 +258,9 @@ def messages_to_dict(messages: list[Message]):
         reply_to = m.reply_to
         m_dict["replies_to_msg_id"].append(getattr(reply_to, "reply_to_msg_id", None))
         m_dict["replies_to_chan_id"].append(
-            None if reply_to is None else getattr(reply_to.reply_to_peer_id, "channel_id", None)
+            None
+            if reply_to is None
+            else getattr(reply_to.reply_to_peer_id, "channel_id", None)
         )
 
         fwd_from = m.fwd_from

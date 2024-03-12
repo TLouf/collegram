@@ -78,7 +78,7 @@ class ProjectPaths:
         self.processed_data = self.data / "processed"
         self.channel_seed = self.ext_data / "channels.txt"
         self.figs = self.proj / "reports" / "figures"
-        self.channels_table = self.interim_data / 'channels.parquet'
+        self.channels_table = self.interim_data / "channels.parquet"
 
 
 @dataclass
@@ -88,11 +88,13 @@ class ChannelPaths:
 
     def __post_init__(self):
         raw = self.project_paths.raw_data
-        self.anon_map = raw / 'anon_maps' / f'{self.anon_channel_id}.json'
-        self.messages = raw / 'messages' / self.anon_channel_id
-        self.channel = raw / 'channels' / f'{self.anon_channel_id}.json'
+        self.anon_map = raw / "anon_maps" / f"{self.anon_channel_id}.json"
+        self.messages = raw / "messages" / self.anon_channel_id
+        self.channel = raw / "channels" / f"{self.anon_channel_id}.json"
 
         interim = self.project_paths.interim_data
-        self.messages_table = interim / 'messages' / f'{self.anon_channel_id}.parquet'
-        self.messages_service_jsonl = interim / 'messages_service' / f'{self.anon_channel_id}.jsonl'
-        self.users_table = interim / 'users' / f'{self.anon_channel_id}.parquet'
+        self.messages_table = interim / "messages" / f"{self.anon_channel_id}.parquet"
+        self.messages_service_jsonl = (
+            interim / "messages_service" / f"{self.anon_channel_id}.jsonl"
+        )
+        self.users_table = interim / "users" / f"{self.anon_channel_id}.parquet"

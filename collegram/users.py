@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 
 
 def get_channel_participants(
-    client: TelegramClient, channel: TypeInputChannel,
+    client: TelegramClient,
+    channel: TypeInputChannel,
 ) -> Iterable[User]:
     """
     We're missing the bio here, can be obtained with GetFullUserRequest
@@ -34,7 +35,7 @@ def get_channel_participants(
 def anon_user_d(user_d: dict, anon_func):
     for field in ("first_name", "last_name", "username", "phone", "photo"):
         user_d[field] = None
-    user_d['id'] = anon_func(user_d['id'])
+    user_d["id"] = anon_func(user_d["id"])
     return user_d
 
 
