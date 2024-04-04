@@ -79,6 +79,8 @@ class ProjectPaths:
         self.channel_seed = self.ext_data / "channels.txt"
         self.figs = self.proj / "reports" / "figures"
         self.channels_table = self.interim_data / "channels.parquet"
+        self.messages_tables = self.interim_data / "messages"
+        self.users_tables = self.interim_data / "users"
 
 
 @dataclass
@@ -93,8 +95,12 @@ class ChannelPaths:
         self.channel = raw / "channels" / f"{self.anon_channel_id}.json"
 
         interim = self.project_paths.interim_data
-        self.messages_table = interim / "messages" / f"{self.anon_channel_id}.parquet"
+        self.messages_table = (
+            self.project_paths.messages_tables / f"{self.anon_channel_id}.parquet"
+        )
         self.messages_service_jsonl = (
             interim / "messages_service" / f"{self.anon_channel_id}.jsonl"
         )
-        self.users_table = interim / "users" / f"{self.anon_channel_id}.parquet"
+        self.users_table = (
+            self.project_paths.users_tables / f"{self.anon_channel_id}.parquet"
+        )
