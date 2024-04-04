@@ -13,4 +13,4 @@ dependencies:
     - -e .
     # For faster media DL:
     - cryptg
-    - lingua-language-detector
+    - git+https://github.com/TLouf/plots.git
