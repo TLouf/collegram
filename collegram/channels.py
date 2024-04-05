@@ -44,7 +44,6 @@ if typing.TYPE_CHECKING:
     from telethon.tl.types import (
         TypeChat,
         TypeInputChannel,
-        TypeInputPeer,
     )
 
 
@@ -265,22 +264,26 @@ def get_recommended(
 @typing.overload
 def get_matching_chat_from_full(
     full_chat: ChatFull, channel_id: int | None = None
-) -> Channel: ...
+) -> Channel:
+    ...
 
 
 @typing.overload
-def get_matching_chat_from_full(
-    full_chat: dict, channel_id: int | None = None
-) -> dict: ...
+def get_matching_chat_from_full(full_chat: dict, channel_id: int | None = None) -> dict:
+    ...
 
 
 def get_matching_chat_from_full(
     full_chat: ChatFull | dict, channel_id: int | None = None
 ) -> Channel | dict:
     if isinstance(full_chat, dict):
-        get = lambda obj, s: obj.get(s)
+
+        def get(obj, s):
+            return obj.get(s)
     else:
-        get = lambda obj, s: getattr(obj, s)
+
+        def get(obj, s):
+            return getattr(obj, s)
 
     id_to_match = (
         get(get(full_chat, "full_chat"), "id") if channel_id is None else channel_id
@@ -311,9 +314,9 @@ def recover_fwd_from_msgs(
                 if from_chan_id is not None:
                     chans_fwd_msg[from_chan_id] = {"id": m.id}
                     if m.reply_to is not None:
-                        chans_fwd_msg[from_chan_id]["reply_to"] = (
-                            m.reply_to.reply_to_msg_id
-                        )
+                        chans_fwd_msg[from_chan_id][
+                            "reply_to"
+                        ] = m.reply_to.reply_to_msg_id
 
     return chans_fwd_msg
 
@@ -408,7 +411,9 @@ def anon_full_dict(full_dict: dict, anonymiser: HMAC_anonymiser, safe=True):
             map(anon_func, full_dict["recommended_channels"])
         )
 
-    user_anon_func = lambda d: collegram.users.anon_user_d(d, anon_func)
+    def user_anon_func(d):
+        return collegram.users.anon_user_d(d, anon_func)
+
     full_dict["users"] = list(map(user_anon_func, full_dict.get("users", [])))
     if "participants" in full_dict:
         full_dict["participants"] = list(map(user_anon_func, full_dict["participants"]))
@@ -452,7 +457,7 @@ def get_explo_priority(
             # lang_prio is both increment and multiplicative factor, thus if some language has
             # prio value N times superior, after exploring N of other language, it'l' be this
             # language's turn.
-            prio = lang_prio * parent_priority + lang_prio
+            prio = parent_priority + lang_prio
     else:
         prio = private_chans_priority
     return prio
