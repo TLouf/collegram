@@ -53,8 +53,6 @@ if TYPE_CHECKING:
         TypePeer,
     )
 
-    from collegram.media import MediaDictType
-
 logger = logging.getLogger(__name__)
 
 
@@ -102,7 +100,6 @@ def save_channel_messages(
     forwards_set: set[int],
     anon_func,
     messages_save_path,
-    media_dict: MediaDictType,
     media_save_path: Path,
     offset_id=0,
     fs: AbstractFileSystem = LOCAL_FS,
@@ -126,7 +123,6 @@ def save_channel_messages(
                     message,
                     forwards_set,
                     anon_func,
-                    media_dict,
                     media_save_path,
                     fs=fs,
                 )
@@ -158,7 +154,6 @@ def preprocess(
     message: Message | MessageService,
     forwards_set: set[int],
     anon_func,
-    media_dict: MediaDictType,
     media_save_path: Path,
     fs: AbstractFileSystem = LOCAL_FS,
 ) -> ExtendedMessage | MessageService:
@@ -166,12 +161,12 @@ def preprocess(
     if isinstance(message, Message):
         preproced_message = ExtendedMessage.from_message(preproced_message)
         preproced_message = preprocess_entities(preproced_message, anon_func)
-        media_dict = collegram.media.preprocess_from_message(
-            message,
-            media_dict,
-            media_save_path,
-            fs=fs,
-        )
+        if preproced_message.media is not None:
+            _ = collegram.media.preprocess(
+                preproced_message.media,
+                media_save_path,
+                fs=fs,
+            )
     preproced_message = anonymise_metadata(preproced_message, forwards_set, anon_func)
     return preproced_message
 

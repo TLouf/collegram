@@ -64,7 +64,6 @@ if __name__ == "__main__":
             chat = chat_d["chat"]
             forwards_set = set()
             media_save_path = paths.raw_data / "media"
-            media_dict = {"photos": {}, "documents": {}}
             # update old messages. both following loop and `if` will be skipped on first
             # outer loop iter
             new_old = {}
@@ -78,7 +77,6 @@ if __name__ == "__main__":
                     message,
                     forwards_set,
                     generic_anonymiser.anonymise,
-                    media_dict,
                     media_save_path,
                 )
                 preprocessed_m.queried_at = datetime.datetime.now(datetime.UTC)
@@ -124,7 +122,6 @@ if __name__ == "__main__":
                                 message,
                                 forwards_set,
                                 generic_anonymiser.anonymise,
-                                media_dict,
                                 media_save_path,
                             )
                             m_d = json.loads(preprocessed_m.to_json())

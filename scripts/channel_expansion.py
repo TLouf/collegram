@@ -1,8 +1,6 @@
 import datetime
 import json
 import os
-from pathlib import Path
-from pprint import pprint
 
 import polars as pl
 import setup
@@ -22,7 +20,7 @@ if __name__ == "__main__":
 
     paths = collegram.paths.ProjectPaths()
     logger = setup.init_logging(paths.proj / "scripts" / __file__)
-    fpath_fwds_to_retrieve = paths.ext_data / 'fpath_fwds_to_retrieve.jsonl'
+    fpath_fwds_to_retrieve = paths.ext_data / "fpath_fwds_to_retrieve.jsonl"
 
     # should always be strictly positive integers, since we want to avoid rabbit holes
     # very far away from initial seed and therefore increment based on parent priority
@@ -267,7 +265,6 @@ if __name__ == "__main__":
                                 last_message_saved
                             ).id
 
-                    all_media_dict = {"photos": {}, "documents": {}}
                     # Save messages, don't get to avoid overflowing memory.
                     collegram.messages.save_channel_messages(
                         client,
@@ -277,11 +274,9 @@ if __name__ == "__main__":
                         chunk_fwds,
                         anonymiser.anonymise,
                         messages_save_path,
-                        all_media_dict,
                         media_save_path,
                         offset_id=offset_id,
                     )
-                    # collegram.media.download_from_dict(client, all_media_dict, paths.raw_data / 'media', only_photos=True)
                     anonymiser.save_map()
                     new_fwds = chunk_fwds.difference(forwarded_chans.keys())
                     for i in new_fwds:
