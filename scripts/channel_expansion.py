@@ -201,13 +201,6 @@ if __name__ == "__main__":
             chan_paths.messages.mkdir(exist_ok=True, parents=True)
             media_save_path = paths.raw_data / "media"
 
-            logger.info(f"reading/saving messages from/to {chan_paths.messages}")
-            dt_from = chat.date
-            dt_from = dt_from.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            dt_bin_edges = pl.datetime_range(
-                dt_from, global_dt_to, interval="1mo", eager=True, time_zone="UTC"
-            )
-
             forwarded_chans = {}
             for fwd_anon_id in set(channel_full_d["forwards_from"]):
                 fwd_id = anonymiser.inverse_anon_map.get(fwd_anon_id)
@@ -241,6 +234,13 @@ if __name__ == "__main__":
                     anonymiser,
                     **get_prio_kwargs,
                 )
+
+            logger.info(f"reading/saving messages from/to {chan_paths.messages}")
+            dt_from = chat.date
+            dt_from = dt_from.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            dt_bin_edges = pl.datetime_range(
+                dt_from, global_dt_to, interval="1mo", eager=True, time_zone="UTC"
+            )
 
             # Caution: the sorting only works because of file name format!
             existing_files = sorted(list(chan_paths.messages.iterdir()))
