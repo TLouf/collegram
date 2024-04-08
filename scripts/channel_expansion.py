@@ -220,7 +220,7 @@ if __name__ == "__main__":
                     # These channels are valid and have been seen for sure,
                     # might be private though.
                     full_chat_d = {}
-                except ChannelInvalidError:
+                except (ChannelInvalidError, ValueError):
                     # happens if chat's full was not saved to disk, and ID not present
                     # in session file
                     full_chat_d = {}
@@ -293,6 +293,11 @@ if __name__ == "__main__":
                             # These channels are valid and have been seen for sure,
                             # might be private though.
                             full_chat_d = {}
+                        except (ChannelInvalidError, ValueError):
+                            # This should happen extremely rarely, still haven't figured
+                            # out conditions under which it does.
+                            full_chat_d = {}
+                            logger.error(f"new forward {i} of {channel_id} invalid?")
 
                         forwarded_chans[i] = collegram.channels.get_explo_priority(
                             full_chat_d,
