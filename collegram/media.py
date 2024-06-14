@@ -62,6 +62,29 @@ def download_from_message_id(
     savedir_path: Path,
     fs: AbstractFileSystem = LOCAL_FS,
 ):
+    """Download a media attached to a message.
+
+    Cannot directly download a media because of the `file_reference` mutability:
+    https://docs.telethon.dev/en/stable/quick-references/faq.html?highlight=media#can-i-send-files-by-id
+
+    Parameters
+    ----------
+    client : TelegramClient
+    channel : TypeInputChannel
+        Reference to the channel in which the message was sent.
+    message_id : int
+        ID of the message inside this channel.
+    savedir_path : Path
+        Path leading to the directory in which to save the media. The filename will be
+        the media ID.
+    fs : AbstractFileSystem, optional
+
+    Returns
+    -------
+    Path or None
+        Path to the downloaded media. None if either the media or the message was not
+        found.
+    """
     m = client.get_messages(channel, ids=message_id)
     if m.media is not None:
         return download(client, m.media, savedir_path, fs=fs)
