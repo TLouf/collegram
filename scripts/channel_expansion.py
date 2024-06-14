@@ -188,7 +188,7 @@ if __name__ == "__main__":
             chat_d = collegram.channels.get_matching_chat_from_full(channel_full_d)
             anon_channel_id = chat_d["id"]
             # try:
-            #     input_chat = collegram.channels.get_input_chan_from_full_d(
+            #     input_chat = collegram.channels.get_input_chan(
             #         client, channel_full_d, key_name, channel_id,
             #     )
             # except (ChannelInvalidError, ChannelPrivateError, UsernameInvalidError, ValueError):
