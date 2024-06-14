@@ -13,4 +13,5 @@ dependencies:
     - -e .
     # For faster media DL:
     - cryptg
+    - pre-commit
     - git+https://github.com/TLouf/plots.git
