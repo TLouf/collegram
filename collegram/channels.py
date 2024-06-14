@@ -137,7 +137,7 @@ def get_full(
     client: TelegramClient,
     project_paths: ProjectPaths,
     anonymiser: HMAC_anonymiser,
-    key_name: str,
+    key_name: str = "",
     channel: Channel | PeerChannel | None = None,
     channel_id: int | str | None = None,
     access_hash: int | None = None,
