@@ -468,7 +468,7 @@ def get_extended_save_data(
     channel_save_data: dict,
     anonymiser,
     project_paths: ProjectPaths,
-    key_name: str,
+    key_name: str = "",
     recommended_chans_prios: dict[int, int] | None = None,
     **explo_prio_kwargs,
 ):
@@ -493,7 +493,7 @@ def get_extended_save_data(
             client,
             project_paths,
             new_anon,
-            key_name,
+            key_name=key_name,
             channel=c,
         )
         new_anon.save_map()
