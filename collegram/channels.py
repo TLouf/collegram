@@ -162,7 +162,7 @@ def get_full(
             # it's doing and has checked its validity.
             input_chan = channel
         else:
-            input_chan = get_input_chan_from_full_d(
+            input_chan = get_input_chan(
                 client,
                 full_chat_d,
                 key_name,
@@ -193,13 +193,14 @@ def get_full(
     return full_chat, full_chat_d
 
 
-def get_input_chan_from_full_d(
+def get_input_chan(
     client: TelegramClient,
-    full_chat_d: dict,
-    key_name: str,
+    full_chat_d: dict | None = None,
+    key_name: str = "",
     channel_id: str | int | None = None,
     access_hash: int | None = None,
     inverse_anon_map: bidict | None = None,
+    username: str | None = None,
 ):
     """
     - if ChannelPrivateError, logic outside to handle (can happen!)
@@ -228,17 +229,15 @@ def get_input_chan_from_full_d(
     try:
         input_peer = get_input_peer(client, channel_id, access_hash)
     except ChannelInvalidError as e:
-        if full_chat_d and inverse_anon_map is not None:
+        if username is None and full_chat_d and inverse_anon_map is not None:
             unames = get_usernames_from_chat_d(chat)
             uname = None if len(unames) == 0 else unames[0]
             username = inverse_anon_map.get(uname)
-            if username is None:
-                # Discussion group attached to broadcast channel, can only get with ID
-                raise e
-            else:
-                input_peer = get_input_peer(client, username)
-        else:
+        if username is None:
+            # Discussion group attached to broadcast channel, can only get with ID
             raise e
+        else:
+            input_peer = get_input_peer(client, username)
     return input_peer
 
 
