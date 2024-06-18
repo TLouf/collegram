@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import inspect
 import json
 import logging
 import re
@@ -651,17 +652,15 @@ def flatten_dict(c: dict) -> tuple[dict, list | None]:
 
 
 def get_pl_schema():
-    chan_schema = {}
     annots = {
-        **Channel.__init__.__annotations__,
-        **ChannelFull.__init__.__annotations__,
+        **inspect.getfullargspec(Channel).annotations,
+        **inspect.getfullargspec(ChannelFull).annotations,
     }
     discarded_args = DISCARDED_CHAN_FIELDS + DISCARDED_CHAN_FULL_FIELDS
-    for arg in set(annots.keys()).difference(discarded_args):
-        dtype = annots[arg]
-        inner_dtype = typing.get_args(dtype)
-        inner_dtype = inner_dtype[0] if len(inner_dtype) > 0 else dtype
-        chan_schema[arg] = PY_PL_DTYPES_MAP.get(inner_dtype)
+    chan_schema = {
+        arg: collegram.utils.py_to_pl_types(annots[arg])
+        for arg in set(annots.keys()).difference(discarded_args)
+    }
     chan_schema = {**chan_schema, **CHANGED_CHAN_FIELDS, **NEW_CHAN_FIELDS}
     return chan_schema
 

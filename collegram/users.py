@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import logging
 import typing
 
@@ -7,7 +8,7 @@ import polars as pl
 from telethon.errors import ChatAdminRequiredError
 from telethon.tl.types import TypeInputChannel, User
 
-from collegram.utils import PY_PL_DTYPES_MAP
+import collegram.utils
 
 if typing.TYPE_CHECKING:
     from typing import Iterable
@@ -67,12 +68,10 @@ def flatten_dict(p: dict):
 
 
 def get_pl_schema():
-    user_schema = {}
-    annots = User.__init__.__annotations__
-    for arg in set(annots.keys()).difference(DISCARDED_USER_FIELDS):
-        dtype = annots[arg]
-        inner_dtype = typing.get_args(dtype)
-        inner_dtype = inner_dtype[0] if len(inner_dtype) > 0 else dtype
-        user_schema[arg] = PY_PL_DTYPES_MAP.get(inner_dtype)
+    annots = inspect.getfullargspec(User).annotations
+    user_schema = {
+        arg: collegram.utils.py_to_pl_types(annots[arg])
+        for arg in set(annots.keys()).difference(DISCARDED_USER_FIELDS)
+    }
     user_schema.update(CHANGED_USER_FIELDS)
     return user_schema

@@ -4,8 +4,10 @@ import datetime
 import hmac
 import json
 import os
+import typing
 from collections import defaultdict
 from queue import PriorityQueue
+from types import NoneType
 from typing import TYPE_CHECKING, Any, overload
 
 import fsspec
@@ -208,3 +210,22 @@ PY_PL_DTYPES_MAP = defaultdict(
         datetime.datetime: pl.Datetime,
     },
 )
+
+def py_to_pl_types(dtype):
+    '''
+    Handles Optional args
+    '''
+    inner_dtype = typing.get_args(dtype)
+    if len(inner_dtype) == 0:
+        inner_dtype = dtype
+    elif len(inner_dtype) == 1:
+        inner_dtype = inner_dtype[0]
+    elif len(inner_dtype) == 2:
+        inner_dtype = inner_dtype[0] if inner_dtype[0] != NoneType else inner_dtype[1]
+    else:
+        raise ValueError(f"Got composite type {dtype} which is not compatible with parquet.")
+    origin = typing.get_origin(inner_dtype)
+    if origin is None:
+        return PY_PL_DTYPES_MAP.get(inner_dtype)
+    else:
+        return PY_PL_DTYPES_MAP[origin](PY_PL_DTYPES_MAP.get(typing.get_args(inner_dtype)[0]))
