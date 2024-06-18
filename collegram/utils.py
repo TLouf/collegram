@@ -57,10 +57,12 @@ class HMAC_anonymiser:
             self.update_from_disk()
 
     @overload
-    def anonymise(self, data: int | str, safe: bool = False) -> str: ...
+    def anonymise(self, data: int | str, safe: bool = False) -> str:
+        ...
 
     @overload
-    def anonymise(self, data: None, safe: bool = False) -> None: ...
+    def anonymise(self, data: None, safe: bool = False) -> None:
+        ...
 
     def anonymise(self, data: int | str | None, safe: bool = False) -> str | None:
         """Anonymise the provided data.
@@ -207,14 +209,15 @@ PY_PL_DTYPES_MAP = defaultdict(
         str: pl.Utf8,
         list: pl.List,
         dict: pl.Struct,
-        datetime.datetime: pl.Datetime,
+        datetime.datetime: pl.Datetime(time_zone="UTC"),
     },
 )
 
+
 def py_to_pl_types(dtype):
-    '''
+    """
     Handles Optional args
-    '''
+    """
     inner_dtype = typing.get_args(dtype)
     if len(inner_dtype) == 0:
         inner_dtype = dtype
@@ -223,9 +226,13 @@ def py_to_pl_types(dtype):
     elif len(inner_dtype) == 2:
         inner_dtype = inner_dtype[0] if inner_dtype[0] != NoneType else inner_dtype[1]
     else:
-        raise ValueError(f"Got composite type {dtype} which is not compatible with parquet.")
+        raise ValueError(
+            f"Got composite type {dtype} which is not compatible with parquet."
+        )
     origin = typing.get_origin(inner_dtype)
     if origin is None:
         return PY_PL_DTYPES_MAP.get(inner_dtype)
     else:
-        return PY_PL_DTYPES_MAP[origin](PY_PL_DTYPES_MAP.get(typing.get_args(inner_dtype)[0]))
+        return PY_PL_DTYPES_MAP[origin](
+            PY_PL_DTYPES_MAP.get(typing.get_args(inner_dtype)[0])
+        )
