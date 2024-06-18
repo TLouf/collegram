@@ -33,7 +33,7 @@ import collegram.messages
 import collegram.text
 import collegram.users
 from collegram.paths import ChannelPaths, ProjectPaths
-from collegram.utils import LOCAL_FS, PY_PL_DTYPES_MAP, HMAC_anonymiser
+from collegram.utils import LOCAL_FS, HMAC_anonymiser
 
 if typing.TYPE_CHECKING:
     from pathlib import Path
