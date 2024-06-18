@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import datetime
+import inspect
 from typing import TYPE_CHECKING, Any, Union
 
 import msgspec
+import polars as pl
 
-from collegram.utils import LOCAL_FS
+from collegram.utils import LOCAL_FS, py_to_pl_types
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -185,38 +187,54 @@ def yield_message(
 ):
     with fs.open(str(fpath), "r") as f:
         for line in f:
-            if line:
+            if line.strip("\n"):
                 yield read_message(line, decoder)
+
+
+NEW_MSG_FIELDS = {
+    "media_type": pl.Utf8,
+    "media_id": pl.Int64,
+    "from_type": pl.Utf8,
+    "from_id": pl.Utf8,
+    "replies_to_msg_id": pl.Int64,
+    "replies_to_chan_id": pl.Utf8,
+    "fwd_from_date": pl.Datetime(time_zone="UTC"),
+    "fwd_from_type": pl.Utf8,
+    "fwd_from_id": pl.Utf8,
+    "fwd_from_msg_id": pl.Int64,
+    "nr_replies": pl.Int64,
+    "has_comments": pl.Boolean,
+}
+CHANGED_MSG_FIELDS = {
+    "reactions": pl.Struct,
+}
+DISCARDED_MSG_FIELDS = (
+    "media",
+    "from_id",
+    "reply_to",
+    "fwd_from",
+    "replies",
+    "reactions",
+)
+
+
+def get_pl_schema():
+    annots = inspect.getfullargspec(Message).annotations
+    discarded_args = DISCARDED_MSG_FIELDS
+    msg_schema = {
+        arg: py_to_pl_types(annots[arg])
+        for arg in set(annots.keys()).difference(discarded_args)
+    }
+    msg_schema = {**msg_schema, **CHANGED_MSG_FIELDS, **NEW_MSG_FIELDS}
+    return msg_schema
 
 
 def messages_to_dict(messages: list[Message]):
     # can also determine nested from Message.__annotations__, but not super robust
-    nested_f = [
-        "media",
-        "reply_to",
-        "from_id",
-        "reply_to",
-        "fwd_from",
-        "replies",
-        "reactions",
-    ]
-    non_nested_f = set(Message.__struct_fields__).difference(nested_f)
-    new_f = [
-        "media_type",
-        "media_id",
-        "from_type",
-        "from_id",
-        "replies_to_msg_id",
-        "replies_to_chan_id",
-        "fwd_from_date",
-        "fwd_from_type",
-        "fwd_from_id",
-        "fwd_from_msg_id",
-        "nr_replies",
-        "has_comments",
-        "reactions",
-    ]
-    final_fields = non_nested_f.union(new_f)
+    non_nested_f = set(Message.__struct_fields__).difference(DISCARDED_MSG_FIELDS)
+    final_fields = non_nested_f.union(NEW_MSG_FIELDS.keys()).union(
+        CHANGED_MSG_FIELDS.keys()
+    )
     m_dict = {field: [] for field in final_fields}
     for m in messages:
         for field in non_nested_f:

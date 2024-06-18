@@ -1,5 +1,4 @@
 from pathlib import Path
-from pprint import pprint
 
 import msgspec
 import polars as pl
@@ -16,6 +15,9 @@ if __name__ == "__main__":
     fs.mkdirs(dummy_chan_paths.messages_table.parent, exist_ok=True)
     fs.mkdirs(dummy_chan_paths.messages_service_jsonl.parent, exist_ok=True)
 
+    schema = collegram.json.get_pl_schema()
+    # Casting struct with fields to generic struct fails, so:
+    cast_schema = {k: v for k, v in schema.items() if v != pl.Struct}
     chans = sorted(fs.ls(dummy_chan_paths.messages.parent))
     for channel_dir in tqdm(chans):
         channel_dir = Path(channel_dir)
@@ -25,13 +27,20 @@ if __name__ == "__main__":
         saved = fs.exists(chan_paths.messages_table) and fs.exists(
             chan_paths.messages_service_jsonl
         )
+        last_saved_at = None
         if saved:
             last_saved_at = max(
                 fs.modified(chan_paths.messages_table),
                 fs.modified(chan_paths.messages_service_jsonl),
             )
-        else:
-            last_saved_at = None
+            try:
+                saved_df = pl.read_parquet(
+                    fs.open(chan_paths.messages_table, "rb").read()
+                ).cast(cast_schema)
+            except pl.ColumnNotFoundError:
+                print(f"missing column in df saved for {anon_id}, replacing")
+                saved = False
+
         messages = []
         for fpath in fs.glob(str(channel_dir / "*.jsonl")):
             if not saved or fs.modified(fpath) > last_saved_at:
@@ -54,16 +63,46 @@ if __name__ == "__main__":
             print(f"skipping {anon_id}")
             continue
 
-        m_df = pl.DataFrame(collegram.json.messages_to_dict(messages))
+        input_d = collegram.json.messages_to_dict(messages)
+        reactions = input_d.pop("reactions")
+        m_df = pl.DataFrame(input_d, schema=cast_schema).with_columns(
+            reactions=pl.Series(reactions)
+        )
 
         if saved:
-            m_df = pl.concat(
-                [
-                    pl.read_parquet(fs.open(chan_paths.messages_table, "rb").read()),
-                    m_df,
-                ],
-                how="diagonal",
-            ).unique("id")
+            m_has_reactions = m_df.get_column("reactions").dtype == pl.Struct
+            saved_has_reactions = saved_df.get_column("reactions").dtype == pl.Struct
+            if m_has_reactions and saved_has_reactions:
+                # New reactions may have been added, or some removed, so get the union
+                # of set of reactions as struct keys, filling with nulls
+                reactions_schema = {
+                    **m_df.get_column("reactions").struct.schema,
+                    **saved_df.get_column("reactions").struct.schema,
+                }
+                m_df = (
+                    pl.concat(
+                        [
+                            saved_df.unnest("reactions"),
+                            m_df.unnest("reactions"),
+                        ],
+                        how="diagonal",
+                    )
+                    .select(
+                        *set(saved_df.columns)
+                        .union(m_df.columns)
+                        .difference(["reactions"]),
+                        reactions=pl.struct(*reactions_schema.keys()),
+                    )
+                    .unique("id")
+                )
+            else:
+                m_df = pl.concat(
+                    [
+                        saved_df,
+                        m_df,
+                    ],
+                    how="diagonal",
+                ).unique("id")
 
         print(f"saving {anon_id}")
         with fs.open(chan_paths.messages_table, "wb") as f:
