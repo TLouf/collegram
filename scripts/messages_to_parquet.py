@@ -66,7 +66,8 @@ if __name__ == "__main__":
                     lines = []
                     with fs.open(str(fpath), "r") as f:
                         for li in f:
-                            if li.strip("\n"):
+                            li = li.strip("\n")
+                            if li:
                                 for p in li.split("}{"):
                                     if not p.startswith("{"):
                                         p = "{" + p
