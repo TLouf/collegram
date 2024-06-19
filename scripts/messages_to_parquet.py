@@ -7,6 +7,20 @@ from tqdm import tqdm
 
 import collegram
 
+
+def append_messages(fpath, messages, chan_paths):
+    for m in collegram.json.yield_message(fpath):
+        # For backwards compatibility, ignore comments, marked with non-null
+        # `comments_msg_id.` Could also go back to historical raw data to
+        # remove all of these messages.
+        if isinstance(m, collegram.json.Message) and m.comments_msg_id is None:
+            messages.append(m)
+        else:
+            with open(chan_paths.messages_service_jsonl, "ab") as f:
+                f.write(msgspec.json.encode(m))
+                f.write(b"\n")
+
+
 if __name__ == "__main__":
     fs = collegram.utils.LOCAL_FS
     paths = collegram.paths.ProjectPaths()
@@ -44,19 +58,23 @@ if __name__ == "__main__":
         messages = []
         for fpath in fs.glob(str(channel_dir / "*.jsonl")):
             if not saved or fs.modified(fpath) > last_saved_at:
-                for m in collegram.json.yield_message(fpath):
-                    # For backwards compatibility, ignore comments, marked with non-null
-                    # `comments_msg_id.` Could also go back to historical raw data to
-                    # remove all of these messages.
-                    if (
-                        isinstance(m, collegram.json.Message)
-                        and m.comments_msg_id is None
-                    ):
-                        messages.append(m)
-                    else:
-                        with open(chan_paths.messages_service_jsonl, "ab") as f:
-                            f.write(msgspec.json.encode(m))
-                            f.write(b"\n")
+                try:
+                    append_messages(fpath, messages, chan_paths)
+                except msgspec.DecodeError:
+                    lines = []
+                    with fs.open(str(fpath), "r") as f:
+                        for li in f:
+                            for p in li.split("}{"):
+                                if not p.startswith("{"):
+                                    p = "{" + p
+                                if not p.endswith("}"):
+                                    p = p + "}"
+                                lines.append(p)
+
+                    with fs.open(str(fpath), "w") as f:
+                        f.write("\n".join(lines))
+                        f.write("\n")
+                    append_messages(fpath, messages, chan_paths)
 
         # If nothing new to add, skip to next channel
         if len(messages) == 0:
