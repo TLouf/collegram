@@ -88,20 +88,32 @@ if __name__ == "__main__":
         )
 
         if saved:
-            m_has_reactions = m_df.get_column("reactions").dtype == pl.Struct
             saved_has_reactions = saved_df.get_column("reactions").dtype == pl.Struct
-            if m_has_reactions and saved_has_reactions:
+            m_has_reactions = m_df.get_column("reactions").dtype == pl.Struct
+            if m_has_reactions or saved_has_reactions:
                 # New reactions may have been added, or some removed, so get the union
                 # of set of reactions as struct keys, filling with nulls
                 reactions_schema = {
-                    **m_df.get_column("reactions").struct.schema,
-                    **saved_df.get_column("reactions").struct.schema,
+                    **(
+                        saved_df.get_column("reactions").struct.schema
+                        if saved_has_reactions
+                        else {}
+                    ),
+                    **(
+                        m_df.get_column("reactions").struct.schema
+                        if m_has_reactions
+                        else {}
+                    ),
                 }
                 m_df = (
                     pl.concat(
                         [
-                            saved_df.unnest("reactions"),
-                            m_df.unnest("reactions"),
+                            saved_df.unnest("reactions")
+                            if saved_has_reactions
+                            else saved_df.drop("reactions"),
+                            m_df.unnest("reactions")
+                            if m_has_reactions
+                            else m_df.drop("reactions"),
                         ],
                         how="diagonal",
                     )
