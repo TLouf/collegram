@@ -8,7 +8,8 @@ from tqdm import tqdm
 import collegram
 
 
-def append_messages(fpath, messages, chan_paths):
+def read_messages(fpath, chan_paths):
+    messages = []
     for m in collegram.json.yield_message(fpath):
         # For backwards compatibility, ignore comments, marked with non-null
         # `comments_msg_id.` Could also go back to historical raw data to
@@ -19,6 +20,7 @@ def append_messages(fpath, messages, chan_paths):
             with open(chan_paths.messages_service_jsonl, "ab") as f:
                 f.write(msgspec.json.encode(m))
                 f.write(b"\n")
+    return messages
 
 
 if __name__ == "__main__":
@@ -59,22 +61,24 @@ if __name__ == "__main__":
         for fpath in fs.glob(str(channel_dir / "*.jsonl")):
             if not saved or fs.modified(fpath) > last_saved_at:
                 try:
-                    append_messages(fpath, messages, chan_paths)
+                    chunk_msgs = read_messages(fpath, chan_paths)
                 except msgspec.DecodeError:
                     lines = []
                     with fs.open(str(fpath), "r") as f:
                         for li in f:
-                            for p in li.split("}{"):
-                                if not p.startswith("{"):
-                                    p = "{" + p
-                                if not p.endswith("}"):
-                                    p = p + "}"
-                                lines.append(p)
+                            if li.strip("\n"):
+                                for p in li.split("}{"):
+                                    if not p.startswith("{"):
+                                        p = "{" + p
+                                    if not p.endswith("}"):
+                                        p = p + "}"
+                                    lines.append(p)
 
                     with fs.open(str(fpath), "w") as f:
                         f.write("\n".join(lines))
                         f.write("\n")
-                    append_messages(fpath, messages, chan_paths)
+                    chunk_msgs = read_messages(fpath, chan_paths)
+                messages.extend(chunk_msgs)
 
         # If nothing new to add, skip to next channel
         if len(messages) == 0:
