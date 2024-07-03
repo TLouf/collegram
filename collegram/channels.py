@@ -57,7 +57,7 @@ async def query_bot(client: TelegramClient, bot, cmd):
         return await conv.get_response()
 
 
-def search_from_tgdb(client: TelegramClient, query):
+def search_from_tgdb(client: TelegramClient, query, raise_on_daily_limit=True):
     while True:
         search_res = client.loop.run_until_complete(
             query_bot(client, "tgdb_bot", f"/search {query}")
@@ -66,7 +66,10 @@ def search_from_tgdb(client: TelegramClient, query):
             results = re.findall(r"@([a-zA-Z0-9_]+)", search_res.message)
             break
         elif "exhausted your daily free searches" in search_res.message:
-            raise RuntimeError(search_res.message)
+            if raise_on_daily_limit:
+                raise RuntimeError(search_res.message)
+            else:
+                time.sleep(24 * 3600)
         else:
             time.sleep(10)
 
