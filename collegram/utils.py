@@ -4,10 +4,15 @@ import datetime
 import hmac
 import json
 import os
+import sys
 import typing
 from collections import defaultdict
 from queue import PriorityQueue
-from types import NoneType
+
+if sys.version_info >= (3, 10):
+    from types import NoneType
+else:
+    NoneType = type(None)
 from typing import TYPE_CHECKING, Any, overload
 
 import fsspec
