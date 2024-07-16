@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime
 import inspect
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 import msgspec
 import polars as pl
@@ -29,7 +29,7 @@ PEER_TYPES_ID = {
 
 class MessageBase(msgspec.Struct, tag_field="_"):
     id: int
-    date: datetime.datetime | None
+    date: Optional[datetime.datetime]
 
 
 class MessageService(MessageBase):
@@ -42,43 +42,43 @@ class Action(msgspec.Struct):
 
 class MaybeForwardedMessage(msgspec.Struct):
     id: int
-    fwd_from: FwdFrom | None = None
-    reply_to: ReplyHeader | None = None
+    fwd_from: Optional[FwdFrom] = None
+    reply_to: Optional[ReplyHeader] = None
 
 
 class Message(MessageBase):
     message: str
-    mentioned: bool | None = None
-    legacy: bool | None = None
-    out: bool | None = None
-    media_unread: bool | None = None
-    silent: bool | None = None
-    noforwards: bool | None = None
-    post: bool | None = None
-    from_scheduled: bool | None = None
-    edit_hide: bool | None = None
-    pinned: bool | None = None
-    invert_media: bool | None = None
-    via_bot_id: int | None = None
-    views: int | None = None
-    forwards: int | None = None
-    edit_date: datetime.datetime | None = None
-    reactions: Reactions | None = None
-    from_id: Peer | None = None
-    comments_msg_id: int | None = None  # DEPRECATED
-    media: MessageMediaTypes | None = None
-    fwd_from: FwdFrom | None = None
-    replies: Replies | None = None
-    reply_to: ReplyHeader | None = None
-    text_urls: list[str] | None = None
-    text_mentions: list[str] | None = None
+    mentioned: Optional[bool] = None
+    legacy: Optional[bool] = None
+    out: Optional[bool] = None
+    media_unread: Optional[bool] = None
+    silent: Optional[bool] = None
+    noforwards: Optional[bool] = None
+    post: Optional[bool] = None
+    from_scheduled: Optional[bool] = None
+    edit_hide: Optional[bool] = None
+    pinned: Optional[bool] = None
+    invert_media: Optional[bool] = None
+    via_bot_id: Optional[int] = None
+    views: Optional[int] = None
+    forwards: Optional[int] = None
+    edit_date: Optional[datetime.datetime] = None
+    reactions: Optional[Reactions] = None
+    from_id: Optional[Peer] = None
+    comments_msg_id: Optional[int] = None  # DEPRECATED
+    media: Optional[MessageMediaTypes] = None
+    fwd_from: Optional[FwdFrom] = None
+    replies: Optional[Replies] = None
+    reply_to: Optional[ReplyHeader] = None
+    text_urls: Optional[list[str]] = None
+    text_mentions: Optional[list[str]] = None
 
 
 class Peer(msgspec.Struct):
     _: str
-    channel_id: str | None = None
-    user_id: str | None = None
-    chat_id: str | None = None
+    channel_id: Optional[str] = None
+    user_id: Optional[str] = None
+    chat_id: Optional[str] = None
 
 
 class MessageMediaBase(msgspec.Struct, tag_field="_"):
@@ -91,8 +91,8 @@ class MessageMediaPhoto(MessageMediaBase):
 
 class MessageMediaDocument(MessageMediaBase):
     document: MediaType
-    video: bool | None = None
-    voice: bool | None = None
+    video: Optional[bool] = None
+    voice: Optional[bool] = None
 
 
 class MessageMediaWebPage(MessageMediaBase):
@@ -130,24 +130,24 @@ class MediaType(msgspec.Struct):
 
 
 class FwdFrom(msgspec.Struct):
-    date: datetime.datetime | None
-    from_id: Peer | None = None
-    channel_post: int | None = None
+    date: Optional[datetime.datetime]
+    from_id: Optional[Peer] = None
+    channel_post: Optional[int] = None
 
 
 class Replies(msgspec.Struct):
     replies: int
-    comments: bool | None = None
+    comments: Optional[bool] = None
 
 
 class ReplyHeader(msgspec.Struct):
-    reply_to_msg_id: int | None = None
-    reply_to_peer_id: Peer | None = None
-    forum_topic: bool | None = None
+    reply_to_msg_id: Optional[int] = None
+    reply_to_peer_id: Optional[Peer] = None
+    forum_topic: Optional[bool] = None
 
 
 class Reactions(msgspec.Struct):
-    results: list[ReactionCount] | None = None
+    results: Optional[list[ReactionCount]] = None
 
 
 class ReactionCount(msgspec.Struct):
@@ -156,8 +156,8 @@ class ReactionCount(msgspec.Struct):
 
 
 class Reaction(msgspec.Struct):
-    emoticon: str | None = None
-    document_id: int | None = None
+    emoticon: Optional[str] = None
+    document_id: Optional[int] = None
 
 
 MessageJSONDecodeType = Union[Message, MessageService]

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from telethon.errors import FileReferenceExpiredError
 from telethon.tl.types import (
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-MediaDictType = dict[str, dict[str, MessageMediaDocument | MessageMediaPhoto]]
+MediaDictType = dict[str, dict[str, Union[MessageMediaDocument, MessageMediaPhoto]]]
 
 
 def preprocess(

@@ -2,6 +2,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 from string import Formatter
+from typing import Optional
 
 import collegram
 
@@ -67,7 +68,7 @@ class ProjectPaths:
     """
 
     proj: Path = Path(collegram.__file__).parent.parent
-    data: Path | None = None
+    data: Optional[Path] = None
 
     def __post_init__(self):
         if self.data is None:
