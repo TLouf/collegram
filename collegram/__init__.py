@@ -1,5 +1,7 @@
 import logging
 
+import telethon.sync  # noqa: F401
+
 from . import channels, client, json, media, messages, paths, text, users, utils
 from .paths import ChannelPaths, ProjectPaths
 from .utils import HMAC_anonymiser, UniquePriorityQueue, get_last_modif_time
