@@ -267,16 +267,18 @@ if __name__ == "__main__":
                             ).id
 
                     # Save messages, don't get to avoid overflowing memory.
-                    collegram.messages.save_channel_messages(
-                        client,
-                        input_chat,
-                        dt_from,
-                        dt_to,
-                        chunk_fwds,
-                        anonymiser.anonymise,
-                        messages_save_path,
-                        media_save_path,
-                        offset_id=offset_id,
+                    client.loop.run_until_complete(
+                        collegram.messages.save_channel_messages(
+                            client,
+                            input_chat,
+                            dt_from,
+                            dt_to,
+                            chunk_fwds,
+                            anonymiser.anonymise,
+                            messages_save_path,
+                            media_save_path,
+                            offset_id=offset_id,
+                        )
                     )
                     anonymiser.save_map()
                     new_fwds = chunk_fwds.difference(forwarded_chans.keys())

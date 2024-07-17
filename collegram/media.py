@@ -85,7 +85,7 @@ def download_from_message_id(
         Path to the downloaded media. None if either the media or the message was not
         found.
     """
-    m = client.get_messages(channel, ids=message_id)
+    m = client.loop.run_until_complete(client.get_messages(channel, ids=message_id))
     if m.media is not None:
         return download(client, m.media, savedir_path, fs=fs)
 
@@ -99,6 +99,6 @@ def download(
     media_id = preprocess(media, savedir_path, fs=fs)
     try:
         with fs.open(str(savedir_path / f"{media_id}"), "wb") as f:
-            return client.download_media(media, f)
+            return client.loop.run_until_complete(client.download_media(media, f))
     except FileReferenceExpiredError:
         logger.warning(f"Reference expired for media {media_id}")

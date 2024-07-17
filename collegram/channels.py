@@ -86,7 +86,10 @@ def search_from_tgdb(client: TelegramClient, query, raise_on_daily_limit=True):
 
 def search_from_api(client: TelegramClient, query, limit=100):
     return {
-        c.id: c.access_hash for c in client(SearchRequest(q=query, limit=limit)).chats
+        c.id: c.access_hash
+        for c in client.loop.run_until_complete(
+            client(SearchRequest(q=query, limit=limit))
+        ).chats
     }
 
 
@@ -115,9 +118,9 @@ def get_input_peer(
     # If we pass a username, `get_input_entity` will check if it exists, however it
     # won't check anything if we pass it a peer. Thus why in that case we need to
     # manually check for existence with a `get_entity`.
-    input_entity = client.get_input_entity(peer)
+    input_entity = client.loop.run_until_complete(client.get_input_entity(peer))
     if isinstance(channel_id, int) and check:
-        client.get_entity(input_entity)
+        client.loop.run_until_complete(client.get_entity(input_entity))
     return input_entity
 
 
@@ -130,7 +133,7 @@ def get(
     input_chan = get_input_peer(client, channel, access_hash)
     if input_chan:
         try:
-            return client.get_entity(input_chan)
+            return client.loop.run_until_complete(client.get_entity(input_chan))
         except ChannelPrivateError:
             channel_id = channel.id if isinstance(channel, Channel) else channel
             logger.debug(f"found private channel {channel_id}")
@@ -179,7 +182,9 @@ def get_full(
             # This case only happens for firt seed, so we always pass on these.
             logger.error(f"Passed identifier {channel_id} refers to a user.")
         elif input_chan:
-            full_chat = client(GetFullChannelRequest(channel=input_chan))
+            full_chat = client.loop.run_until_complete(
+                client(GetFullChannelRequest(channel=input_chan))
+            )
             new_full_d = get_anoned_full_dict(full_chat, anonymiser)
             # To avoid overwriting data in channels for which we passed a username, try
             # to load once more here:
@@ -261,7 +266,9 @@ def content_count(client: TelegramClient, channel: TypeInputChannel, content_typ
 def get_recommended(
     client: TelegramClient, channel: TypeInputChannel
 ) -> list[TypeChat]:
-    return client(GetChannelRecommendationsRequest(channel)).chats
+    return client.loop.run_until_complete(
+        client(GetChannelRecommendationsRequest(channel))
+    ).chats
 
 
 @typing.overload
@@ -340,8 +347,10 @@ def fwd_from_msg_ids(
     forwarded_channels = {}
     for chan_id, m_d in chans_fwd_msg.items():
         fwd_full_chan_d = {}
-        m = client.get_messages(
-            entity=chat, ids=m_d["id"], reply_to=m_d.get("reply_to")
+        m = client.loop.run_until_complete(
+            client.get_messages(
+                entity=chat, ids=m_d["id"], reply_to=m_d.get("reply_to")
+            )
         )
         fwd_from = getattr(m, "fwd_from", None)
         if fwd_from is not None:

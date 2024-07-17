@@ -92,7 +92,7 @@ def yield_comments(
             yield c
 
 
-def save_channel_messages(
+async def save_channel_messages(
     client: TelegramClient,
     channel: TypeInputChannel,
     dt_from: datetime.datetime,
@@ -109,7 +109,7 @@ def save_channel_messages(
     """
     # Telethon docs are misleading, `offset_date` is in fact a datetime.
     with fs.open(messages_save_path, "a") as f:
-        for message in client.iter_messages(
+        async for message in client.iter_messages(
             entity=channel,
             offset_date=dt_from,
             offset_id=offset_id,
@@ -138,7 +138,9 @@ def query_channel_messages(
     f: TypeMessagesFilter,
     query: str = "",
 ) -> ChannelMessages:
-    return client(SearchRequest(channel, query, f, None, None, 0, 0, 0, 0, 0, 0))
+    return client.loop.run_until_complete(
+        client(SearchRequest(channel, query, f, None, None, 0, 0, 0, 0, 0, 0))
+    )
 
 
 def get_channel_messages_count(

@@ -26,7 +26,7 @@ def get_channel_participants(
     We're missing the bio here, can be obtained with GetFullUserRequest
     """
     try:
-        participants = client.iter_participants(channel)
+        participants = client.loop.run_until_complete(client.get_participants(channel))
     except ChatAdminRequiredError:
         logger.warning(f"No access to participants of {channel}")
         participants = []

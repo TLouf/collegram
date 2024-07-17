@@ -12,13 +12,15 @@ def connect(api_id, api_hash, phone_nr, session="anon", **client_kwargs):
     client.start()
     logger.info("Client Created")
 
-    if not client.is_user_authorized():
+    if not client.loop.run_until_complete(client.is_user_authorized()):
         phone_nr = phone_nr
-        client.send_code_request(phone_nr)
+        client.loop.run_until_complete(client.send_code_request(phone_nr))
         try:
-            client.sign_in(phone_nr, input("Enter the code: "))
+            client.loop.run_until_complete(
+                client.sign_in(phone_nr, input("Enter the code: "))
+            )
         except SessionPasswordNeededError:
-            client.sign_in(password=input("Password: "))
+            client.loop.run_until_complete(client.sign_in(password=input("Password: ")))
 
     return client
 
