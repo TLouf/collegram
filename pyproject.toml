@@ -4,7 +4,7 @@ build-backend = "pdm.backend"
 
 [project]
 name = "collegram"
-version = "0.0.1"
+version = "0.1.0"
 authors = [
   { name="Thomas Louf", email="tlouf+pro@pm.me" },
 ]
