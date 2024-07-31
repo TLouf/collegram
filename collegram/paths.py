@@ -86,10 +86,11 @@ class ProjectPaths:
 
 @dataclass
 class ChannelPaths:
-    anon_channel_id: str
+    anon_channel_id: str | int
     project_paths: ProjectPaths
 
     def __post_init__(self):
+        self.anon_channel_id = str(self.anon_channel_id)
         raw = self.project_paths.raw_data
         self.anon_map = raw / "anon_maps" / f"{self.anon_channel_id}.json"
         self.messages = raw / "messages" / self.anon_channel_id
