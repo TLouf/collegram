@@ -369,7 +369,6 @@ DISCARDED_CHAN_FIELDS = (
 CHANGED_CHAN_FIELDS = {
     "forwards_from": pl.List(pl.Utf8),
     "usernames": pl.List(pl.Utf8),
-    "migrated_to": pl.Utf8,
 }
 NEW_CHAN_FIELDS = {
     "bot_ids": pl.List(pl.Int64),
