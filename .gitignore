@@ -92,3 +92,5 @@ target/
 
 # Telethon sessions
 *.session*
+
+scripts/
