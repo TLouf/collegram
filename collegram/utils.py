@@ -99,6 +99,34 @@ class HMAC_anonymiser:
         return self.anon_map.inverse
 
 
+def insert_into_postgres(conn, table: str, values: dict | list[dict]):
+    """values: if a list, dicts all assumed to have the same keys"""
+    if isinstance(values, dict):
+        values = [values]
+
+    cur = None
+    try:
+        list_cols = list(values[0].keys())
+        col_names_str = f"({', '.join(list_cols)})"
+        col_values_fmt = ", ".join([f"%({k})s" for k in list_cols])
+        query = f"INSERT INTO {table} {col_names_str} VALUES ({col_values_fmt})"
+        cur = conn.cursor()
+        for v in values:
+            cur.execute(
+                query,
+                v,
+            )
+        conn.commit()
+
+    except Exception as e:
+        print("ERROR INSERTING channels_to_query")
+        print(e)
+        cur.execute("ROLLBACK")
+        conn.commit()
+    finally:
+        cur.close()
+
+
 def read_nth_to_last_line(path, fs: fsspec.AbstractFileSystem = LOCAL_FS, n=1):
     """Returns the nth to last line of a file (n=1 gives last line)
 
