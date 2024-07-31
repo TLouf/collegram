@@ -24,7 +24,6 @@ from telethon.tl.types import (
     ChannelFull,
     ChatFull,
     InputPeerChannel,
-    InputPeerUser,
     PeerChannel,
 )
 
@@ -36,9 +35,6 @@ from collegram.paths import ChannelPaths, ProjectPaths
 from collegram.utils import LOCAL_FS, HMAC_anonymiser
 
 if typing.TYPE_CHECKING:
-    from pathlib import Path
-
-    from bidict import bidict
     from fsspec import AbstractFileSystem
     from lingua import LanguageDetector
     from telethon import TelegramClient
@@ -93,9 +89,17 @@ def search_from_api(client: TelegramClient, query, limit=100):
     }
 
 
-def get_input_peer(
+def get(
     client: TelegramClient,
-    channel_id: str | int,
+    input_chan: PeerChannel | InputPeerChannel | str,
+) -> Channel | None:
+    return client.loop.run_until_complete(client.get_entity(input_chan))
+
+
+def _get_input_peer(
+    client: TelegramClient,
+    channel_username: str | None = None,
+    channel_id: int | None = None,
     access_hash: int | None = None,
     check: bool = True,
 ) -> InputPeerChannel:
@@ -105,112 +109,31 @@ def get_input_peer(
       - ChannelInvalidError if wrong int ID / access_hash pair is passed and check is True
       - ChannelPrivateError if channel is private and check is True
     """
-    if isinstance(channel_id, str) and channel_id.isdigit():
-        channel_id = int(channel_id)
-
-    if isinstance(channel_id, str):
-        peer = channel_id
-    elif access_hash is None:
+    if channel_id is not None and access_hash is not None:
+        peer = InputPeerChannel(channel_id, access_hash)
+    elif channel_username is not None:
+        peer = channel_username
+    elif channel_id is not None:
         peer = PeerChannel(channel_id)
     else:
-        peer = InputPeerChannel(channel_id, access_hash)
+        raise ValueError("One of channel_username or channel_id must be passed")
 
     # If we pass a username, `get_input_entity` will check if it exists, however it
     # won't check anything if we pass it a peer. Thus why in that case we need to
     # manually check for existence with a `get_entity`.
     input_entity = client.loop.run_until_complete(client.get_input_entity(peer))
-    if isinstance(channel_id, int) and check:
-        client.loop.run_until_complete(client.get_entity(input_entity))
+    if not isinstance(peer, str) and check:
+        get(client, input_entity)
     return input_entity
 
 
-def get(
+def get_input_peer(
     client: TelegramClient,
-    channel: int | str,
+    channel_username: str | None = None,
+    channel_id: int | None = None,
     access_hash: int | None = None,
-) -> Channel | None:
-    # TODO: fix
-    input_chan = get_input_peer(client, channel, access_hash)
-    if input_chan:
-        try:
-            return client.loop.run_until_complete(client.get_entity(input_chan))
-        except ChannelPrivateError:
-            channel_id = channel.id if isinstance(channel, Channel) else channel
-            logger.debug(f"found private channel {channel_id}")
-            return
-
-
-def get_full(
-    client: TelegramClient,
-    project_paths: ProjectPaths,
-    anonymiser: HMAC_anonymiser,
-    key_name: str = "",
-    channel: Channel | PeerChannel | None = None,
-    channel_id: int | str | None = None,
-    access_hash: int | None = None,
-    force_query=False,
-    fs: AbstractFileSystem = LOCAL_FS,
-) -> tuple[ChatFull | None, dict]:
-    full_chat = None
-    if channel_id is None and channel is None:
-        raise ValueError("Either `channel` or `channel_id` must be set.")
-    elif channel_id is None:
-        channel_id = channel.id if isinstance(channel, Channel) else channel.channel_id
-
-    anon_id = anonymiser.anonymise(channel_id)
-    full_chat_d = load(anon_id, project_paths, fs)
-
-    if force_query or not full_chat_d:
-        # TODO: if key_name in access_hashes, use that, otherwise use username. if that
-        # doesn't succeed, throw custom error to be caught in caller to redirect this
-        # channel to other key
-        if isinstance(channel, (Channel, PeerChannel, InputPeerChannel)):
-            # It is assumed here that if the caller passes a .*Peer.*, it knows what
-            # it's doing and has checked its validity.
-            input_chan = channel
-        else:
-            input_chan = get_input_chan(
-                client,
-                full_chat_d,
-                key_name,
-                channel_id,
-                access_hash,
-                anonymiser.inverse_anon_map,
-            )
-        str_id_is_user = isinstance(input_chan, InputPeerUser)
-        if input_chan and str_id_is_user:
-            # This case only happens for firt seed, so we always pass on these.
-            logger.error(f"Passed identifier {channel_id} refers to a user.")
-        elif input_chan:
-            full_chat = client.loop.run_until_complete(
-                client(GetFullChannelRequest(channel=input_chan))
-            )
-            new_full_d = get_anoned_full_dict(full_chat, anonymiser)
-            # To avoid overwriting data in channels for which we passed a username, try
-            # to load once more here:
-            if isinstance(channel_id, str) and not channel_id.isdigit():
-                anon_id = anonymiser.anonymise(full_chat.full_chat.id)
-                full_chat_d = load(anon_id, project_paths, fs)
-
-            paths = [
-                f"chats.id:{chat['id']}.access_hashes" for chat in new_full_d["chats"]
-            ]
-            full_chat_d = collegram.utils.safe_dict_update(
-                full_chat_d, new_full_d, paths
-            )
-            save(full_chat_d, project_paths, key_name, fs=fs)
-    return full_chat, full_chat_d
-
-
-def get_input_chan(
-    client: TelegramClient,
-    full_chat_d: dict | None = None,
-    key_name: str = "",
-    channel_id: str | int | None = None,
-    access_hash: int | None = None,
-    inverse_anon_map: bidict | None = None,
-    username: str | None = None,
-):
+    check: bool = True,
+) -> InputPeerChannel:
     """
     - if ChannelPrivateError, logic outside to handle (can happen!)
     - UsernameInvalidError, ValueError if (ID, access_hash) pair is invalid for that API
@@ -220,34 +143,41 @@ def get_input_chan(
       recommended or forwarded, but full_chat_d was not
     - IndexError if ID is missing in inverse_anon_map
     """
-    if channel_id is None and inverse_anon_map is None:
-        raise ValueError("must pass either original channel_id or an inverse_anon_map")
-
-    if full_chat_d:
-        if channel_id is None and inverse_anon_map is not None:
-            anon_id = full_chat_d["full_chat"]["id"]
-            channel_id = inverse_anon_map[anon_id]
-        if access_hash is None:
-            chat = get_matching_chat_from_full(full_chat_d)
-            chashes = chat.get("access_hashes", {})
-            chash = chat["access_hash"]
-            access_hash = chashes.get(key_name) or (
-                chash if chash not in chashes.values() else None
-            )
-
     try:
-        input_peer = get_input_peer(client, channel_id, access_hash)
+        return _get_input_peer(client, channel_username, channel_id, access_hash, check)
     except ChannelInvalidError as e:
-        if username is None and full_chat_d and inverse_anon_map is not None:
-            unames = get_usernames_from_chat_d(chat)
-            uname = None if len(unames) == 0 else unames[0]
-            username = inverse_anon_map.get(uname)
-        if username is None:
-            # Discussion group attached to broadcast channel, can only get with ID
-            raise e
-        else:
-            input_peer = get_input_peer(client, username)
-    return input_peer
+        # Try with username if possible
+        if channel_username is not None:
+            return _get_input_peer(client, channel_username, check=check)
+        raise e
+
+
+def get_full(
+    client: TelegramClient,
+    channel: Channel | None = None,
+    channel_username: str | None = None,
+    channel_id: int | None = None,
+    access_hash: int | None = None,
+) -> ChatFull | None:
+    if channel_id is None and channel is None and channel_username is None:
+        raise ValueError(
+            "Either `channel` or `channel_id` or `channel_username` must be set."
+        )
+
+    if channel is not None:
+        input_chan = channel
+    else:
+        input_chan = get_input_peer(
+            client,
+            channel_username,
+            channel_id,
+            access_hash,
+        )
+
+    full_chat = client.loop.run_until_complete(
+        client(GetFullChannelRequest(channel=input_chan))
+    )
+    return full_chat
 
 
 def get_usernames_from_chat_d(chat_d: dict) -> list[str]:
@@ -302,98 +232,6 @@ def get_matching_chat_from_full(
     return chat
 
 
-def recover_fwd_from_msgs(
-    messages_path: Path,
-    fs: AbstractFileSystem = LOCAL_FS,
-) -> dict[int, dict]:
-    chans_fwd_msg = {}
-    messages_str_path = str(messages_path)
-    if fs.isdir(messages_str_path):
-        fpaths_iter = fs.glob(f"{messages_str_path}/*.jsonl")
-    elif fs.exists(messages_str_path):
-        fpaths_iter = [messages_str_path]
-    else:
-        fpaths_iter = []
-
-    for p in fpaths_iter:
-        for m in collegram.json.yield_message(
-            p, fs, collegram.json.FAST_FORWARD_DECODER
-        ):
-            if m.fwd_from is not None:
-                from_chan_id = getattr(m.fwd_from.from_id, "channel_id", None)
-                if from_chan_id is not None:
-                    chans_fwd_msg[from_chan_id] = {"id": m.id}
-                    if m.reply_to is not None:
-                        chans_fwd_msg[from_chan_id][
-                            "reply_to"
-                        ] = m.reply_to.reply_to_msg_id
-
-    return chans_fwd_msg
-
-
-def fwd_from_msg_ids(
-    client: TelegramClient,
-    project_paths: ProjectPaths,
-    chat: TypeInputChannel,
-    chans_fwd_msg: dict[int, dict],
-    anonymiser,
-    key_name: str,
-    parent_priority,
-    lang_detector: LanguageDetector,
-    lang_priorities: dict,
-    private_chans_priority: int,
-    fs: AbstractFileSystem = LOCAL_FS,
-):
-    forwarded_channels = {}
-    for chan_id, m_d in chans_fwd_msg.items():
-        fwd_full_chan_d = {}
-        m = client.loop.run_until_complete(
-            client.get_messages(
-                entity=chat, ids=m_d["id"], reply_to=m_d.get("reply_to")
-            )
-        )
-        fwd_from = getattr(m, "fwd_from", None)
-        if fwd_from is not None:
-            try:
-                fwd_id = m.fwd_from.from_id
-                new_chan_paths = ChannelPaths(
-                    anonymiser.anonymise(fwd_id), project_paths
-                )
-                new_anon = HMAC_anonymiser(
-                    anonymiser.key, save_path=new_chan_paths.anon_map
-                )
-                _, fwd_full_chan_d = get_full(
-                    client,
-                    project_paths,
-                    anonymiser,
-                    key_name,
-                    channel=fwd_id,
-                    fs=fs,
-                )
-                new_anon.save_map()
-            except ChannelPrivateError:
-                # `m.fwd_from.from_id`` is for sure a valid Channel, might be private
-                # though. Assign `fwd_full_chan_d` to empty dict in case the channel has
-                # actually been made private since last time we collected.
-                fwd_full_chan_d = {}
-        elif m is not None:
-            logger.error("message supposed to have been forwarded is not")
-            continue
-        else:
-            logger.error("forwarded message was deleted")
-
-        prio = get_explo_priority(
-            fwd_full_chan_d,
-            anonymiser,
-            parent_priority,
-            lang_detector,
-            lang_priorities,
-            private_chans_priority,
-        )
-        forwarded_channels[chan_id] = prio
-    return forwarded_channels
-
-
 def get_anoned_full_dict(full_chat: ChatFull, anonymiser: HMAC_anonymiser, safe=True):
     channel_save_data = json.loads(full_chat.to_json())
     return anon_full_dict(channel_save_data, anonymiser, safe=safe)
@@ -403,7 +241,6 @@ def anon_full_dict(full_dict: dict, anonymiser: HMAC_anonymiser, safe=True):
     anon_func = anonymiser.anonymise
     for c in full_dict["chats"]:
         c["photo"] = None
-        c["id"] = anon_func(c["id"], safe=safe)
         c["username"] = anon_func(c["username"], safe=safe)
         c["title"] = anon_func(c["title"], safe=safe)
         if c["usernames"] is not None:
@@ -411,17 +248,6 @@ def anon_full_dict(full_dict: dict, anonymiser: HMAC_anonymiser, safe=True):
                 un["username"] = anon_func(un["username"], safe=safe)
     full_channel = full_dict["full_chat"]
     full_channel["chat_photo"] = None
-    full_channel["id"] = anon_func(full_channel["id"], safe=safe)
-    full_channel["linked_chat_id"] = anon_func(
-        full_channel["linked_chat_id"], safe=safe
-    )
-    full_channel["migrated_from_chat_id"] = anon_func(
-        full_channel["migrated_from_chat_id"], safe=safe
-    )
-    if "recommended_channels" in full_dict:
-        full_dict["recommended_channels"] = list(
-            map(anon_func, full_dict["recommended_channels"])
-        )
 
     def user_anon_func(d):
         return collegram.users.anon_user_d(d, anon_func)
@@ -473,58 +299,6 @@ def get_explo_priority(
     else:
         prio = private_chans_priority
     return prio
-
-
-def get_extended_save_data(
-    client: TelegramClient,
-    chat: TypeInputChannel,
-    channel_save_data: dict,
-    anonymiser,
-    project_paths: ProjectPaths,
-    key_name: str = "",
-    recommended_chans_prios: dict[int, int] | None = None,
-    **explo_prio_kwargs,
-):
-    participants_iter = (
-        collegram.users.get_channel_participants(client, chat)
-        if channel_save_data["full_chat"].get("can_view_participants", False)
-        else []
-    )
-
-    channel_save_data["participants"] = [
-        json.loads(u.to_json()) for u in participants_iter
-    ]
-
-    channel_save_data["recommended_channels"] = []
-    for c in get_recommended(client, chat):
-        # A priori, this `get_full` call is safe as `GetChannelRecommendationsRequest`
-        # should only return public channels, and all these channels should be
-        # considered as seen before.
-        new_chan_paths = ChannelPaths(anonymiser.anonymise(c.id), project_paths)
-        new_anon = HMAC_anonymiser(anonymiser.key, save_path=new_chan_paths.anon_map)
-        _, full_chat_d = get_full(
-            client,
-            project_paths,
-            new_anon,
-            key_name=key_name,
-            channel=c,
-        )
-        new_anon.save_map()
-        if recommended_chans_prios is not None:
-            recommended_chans_prios[c.id] = get_explo_priority(
-                full_chat_d, anonymiser, **explo_prio_kwargs
-            )
-        channel_save_data["recommended_channels"].append(c.id)
-    anonymiser.save_map()
-
-    for content_type, f in collegram.messages.MESSAGE_CONTENT_TYPE_MAP.items():
-        count = collegram.messages.get_channel_messages_count(client, chat, f)
-        channel_save_data[f"{content_type}_count"] = count
-
-    channel_save_data["last_queried_at"] = datetime.datetime.now(
-        datetime.UTC
-    ).isoformat()
-    return channel_save_data
 
 
 def save(
@@ -593,16 +367,13 @@ DISCARDED_CHAN_FIELDS = (
     "access_hashes",
 )
 CHANGED_CHAN_FIELDS = {
-    "id": pl.Utf8,
-    "linked_chat_id": pl.Utf8,
-    "migrated_from_chat_id": pl.Utf8,
     "forwards_from": pl.List(pl.Utf8),
     "usernames": pl.List(pl.Utf8),
     "migrated_to": pl.Utf8,
 }
 NEW_CHAN_FIELDS = {
     "bot_ids": pl.List(pl.Int64),
-    "linked_chats_ids": pl.List(pl.Utf8),
+    "linked_chats_ids": pl.List(pl.Int64),
     "recommended_channels": pl.List(pl.Utf8),
     "location_point": pl.List(pl.Float64),
     "location_str": pl.Utf8,

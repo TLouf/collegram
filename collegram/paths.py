@@ -86,23 +86,22 @@ class ProjectPaths:
 
 @dataclass
 class ChannelPaths:
-    anon_channel_id: str | int
+    channel_id: int
     project_paths: ProjectPaths
 
     def __post_init__(self):
-        self.anon_channel_id = str(self.anon_channel_id)
         raw = self.project_paths.raw_data
-        self.anon_map = raw / "anon_maps" / f"{self.anon_channel_id}.json"
-        self.messages = raw / "messages" / self.anon_channel_id
-        self.channel = raw / "channels" / f"{self.anon_channel_id}.json"
+        self.anon_map = raw / "anon_maps" / f"{self.channel_id}.json"
+        self.messages = raw / "messages" / f"{self.channel_id}"
+        self.channel = raw / "channels" / f"{self.channel_id}.json"
 
         interim = self.project_paths.interim_data
         self.messages_table = (
-            self.project_paths.messages_tables / f"{self.anon_channel_id}.parquet"
+            self.project_paths.messages_tables / f"{self.channel_id}.parquet"
         )
         self.messages_service_jsonl = (
-            interim / "messages_service" / f"{self.anon_channel_id}.jsonl"
+            interim / "messages_service" / f"{self.channel_id}.jsonl"
         )
         self.users_table = (
-            self.project_paths.users_tables / f"{self.anon_channel_id}.parquet"
+            self.project_paths.users_tables / f"{self.channel_id}.parquet"
         )
