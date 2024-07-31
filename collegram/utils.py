@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import datetime
 import hmac
-import json
 import os
 import sys
 import typing
@@ -44,22 +43,18 @@ class UniquePriorityQueue(PriorityQueue):
 class HMAC_anonymiser:
     def __init__(
         self,
+        save_func,
         key: str | bytes | None = None,
         key_env_var_name: str = "HMAC_KEY",
         anon_map: bidict | None = None,
-        save_path: Path | None = None,
-        fs: fsspec.AbstractFileSystem = LOCAL_FS,
     ):
+        self.save_func = save_func
         if key is None:
             key = os.environ[key_env_var_name]
         if isinstance(key, str):
             key = bytes.fromhex(key)
         self.key = key
         self.anon_map: bidict[str, str] = bidict() if anon_map is None else anon_map
-        self.save_path = save_path
-        self.fs = fs
-        if save_path is not None:
-            self.update_from_disk()
 
     @overload
     def anonymise(self, data: int | str, safe: bool = False) -> str:
@@ -71,46 +66,33 @@ class HMAC_anonymiser:
 
     def anonymise(self, data: int | str | None, safe: bool = False) -> str | None:
         """Anonymise the provided data.
+        TODO: reimplement safe somehow?
 
         Parameters
         ----------
         data : int | str | None
             Input data. If None, the function simply returns None.
         safe : bool, optional
-            Whether the anonymiser should first check that the input data are not the
-            result of a previous anonymisation. False by default.
+            Currently has no effect. Whether the anonymiser should first check that the
+            input data are not the result of a previous anonymisation. False by default.
 
         Returns
         -------
         str
             Anonymised data.
         """
-        if data is not None:
-            if not safe or data not in self.inverse_anon_map:
-                data_str = str(data)
-                data = self.anon_map.get(data_str)
-                if data is None:
-                    data = hmac.digest(
-                        self.key, data_str.encode("utf-8", "surrogatepass"), "sha256"
-                    ).hex()
-                    self.anon_map[data_str] = data
-        return data
-
-    def update_from_disk(self, save_path: Path | None = None):
-        save_path = str(save_path if save_path is not None else self.save_path)
-        if self.fs.exists(save_path):
-            with self.fs.open(save_path, "r") as f:
-                d = json.load(f)
-            self.anon_map.update(d)
-
-    def save_map(self, save_path: Path | None = None):
-        save_path = save_path if save_path is not None else self.save_path
-        if save_path is None:
-            raise ValueError("no save_path set or passed here.")
-        parent = str(save_path.parent)
-        self.fs.mkdirs(parent, exist_ok=True)
-        with self.fs.open(str(save_path), "w") as f:
-            json.dump(dict(self.anon_map), f)
+        if data is None:
+            anon_data = None
+        else:
+            data_str = str(data)
+            anon_data = self.anon_map.get(data_str)
+            if anon_data is None:
+                anon_data = hmac.digest(
+                    self.key, data_str.encode("utf-8", "surrogatepass"), "sha256"
+                ).hex()
+                self.anon_map[data_str] = anon_data
+                self.save_func(data_str, anon_data)
+        return anon_data
 
     @property
     def inverse_anon_map(self) -> bidict[str, str]:
