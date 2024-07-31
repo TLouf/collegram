@@ -367,13 +367,12 @@ DISCARDED_CHAN_FIELDS = (
     "access_hashes",
 )
 CHANGED_CHAN_FIELDS = {
-    "forwards_from": pl.List(pl.Utf8),
     "usernames": pl.List(pl.Utf8),
 }
 NEW_CHAN_FIELDS = {
     "bot_ids": pl.List(pl.Int64),
     "linked_chats_ids": pl.List(pl.Int64),
-    "recommended_channels": pl.List(pl.Utf8),
+    "recommended_channels": pl.List(pl.Int64),
     "location_point": pl.List(pl.Float64),
     "location_str": pl.Utf8,
     "last_queried_at": pl.Datetime,
@@ -394,7 +393,6 @@ def flatten_dict(c: dict) -> tuple[dict, list | None]:
         if isinstance(last_queried_at, str)
         else last_queried_at
     )
-    flat_c["forwards_from"] = c.get("forwards_from")
     flat_c["recommended_channels"] = c.get("recommended_channels")
     for content_type in collegram.messages.MESSAGE_CONTENT_TYPE_MAP.keys():
         count_key = f"{content_type}_count"
