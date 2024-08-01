@@ -26,15 +26,12 @@ from telethon.tl.types import (
     MessageActionChatEditPhoto,
     MessageActionChatEditTitle,
     MessageActionChatJoinedByLink,
-    MessageActionChatMigrateTo,
     MessageEntityEmail,
     MessageEntityMention,  # for channels
     MessageEntityMentionName,  # for users (has a `user_id` attr)
     MessageEntityTextUrl,  # has a `url` attr
     MessageEntityUrl,
     MessageService,
-    PeerChannel,
-    PeerChat,
     PeerUser,
 )
 from telethon.tl.types.messages import ChannelMessages
@@ -229,7 +226,6 @@ def anonymise_metadata(
         )
 
         if message.replies is not None:
-            message.replies.channel_id = anon_func(message.replies.channel_id)
             if message.replies.recent_repliers is not None:
                 for r in message.replies.recent_repliers:
                     # Repliers are not necessarily users, can be a channel.
@@ -261,8 +257,6 @@ def anonymise_metadata(
             message.action.inviter_id = anon_func(message.action.inviter_id)
         elif isinstance(message.action, MessageActionChatEditPhoto):
             message.action.photo.id = anon_func(message.action.photo.id)
-        elif isinstance(message.action, MessageActionChatMigrateTo):
-            message.action.channel_id = anon_func(message.action.channel_id)
 
         actions_with_title = (
             MessageActionChannelCreate,
@@ -291,12 +285,8 @@ def anonymise_opt_peer(object, path_to_peer, anon_func):
 
 
 def anonymise_peer(obj: TypePeer, anon_func):
-    if isinstance(obj, PeerChannel):
-        setattr(obj, "channel_id", anon_func(obj.channel_id))
-    elif isinstance(obj, PeerUser):
+    if isinstance(obj, PeerUser):
         setattr(obj, "user_id", anon_func(obj.user_id))
-    elif isinstance(obj, PeerChat):
-        setattr(obj, "chat_id", anon_func(obj.chat_id))
     return obj
 
 
