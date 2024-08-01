@@ -255,7 +255,6 @@ def anon_full_dict(full_dict: dict, anonymiser: HMAC_anonymiser, safe=True):
     if "participants" in full_dict:
         full_dict["participants"] = list(map(user_anon_func, full_dict["participants"]))
 
-    anonymiser.save_map()
     return full_dict
 
 
