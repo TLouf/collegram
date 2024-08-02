@@ -57,12 +57,10 @@ class HMAC_anonymiser:
         self.anon_map: bidict[str, str] = bidict() if anon_map is None else anon_map
 
     @overload
-    def anonymise(self, data: int | str, safe: bool = False) -> str:
-        ...
+    def anonymise(self, data: int | str, safe: bool = False) -> str: ...
 
     @overload
-    def anonymise(self, data: None, safe: bool = False) -> None:
-        ...
+    def anonymise(self, data: None, safe: bool = False) -> None: ...
 
     def anonymise(self, data: int | str | None, safe: bool = False) -> str | None:
         """Anonymise the provided data.
@@ -119,7 +117,7 @@ def insert_into_postgres(conn, table: str, values: dict | list[dict]):
         conn.commit()
 
     except Exception as e:
-        print("ERROR INSERTING channels_to_query")
+        print(f"ERROR INSERTING {table}")
         print(e)
         cur.execute("ROLLBACK")
         conn.commit()
