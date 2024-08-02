@@ -102,22 +102,45 @@ def insert_into_postgres(conn, table: str, values: dict | list[dict]):
     if isinstance(values, dict):
         values = [values]
 
+    list_cols = list(values[0].keys())
+    col_names_str = f"({', '.join(list_cols)})"
+    col_values_fmt = ", ".join([f"%({k})s" for k in list_cols])
+    query = (
+        f"INSERT INTO {table} {col_names_str}"
+        f" VALUES ({col_values_fmt})"
+        " ON CONFLICT DO NOTHING"
+    )
+
     cur = None
     try:
-        list_cols = list(values[0].keys())
-        col_names_str = f"({', '.join(list_cols)})"
-        col_values_fmt = ", ".join([f"%({k})s" for k in list_cols])
-        query = f"INSERT INTO {table} {col_names_str} VALUES ({col_values_fmt})"
         cur = conn.cursor()
         for v in values:
-            cur.execute(
-                query,
-                v,
-            )
+            cur.execute(query, v)
         conn.commit()
 
     except Exception as e:
         print(f"ERROR INSERTING {table}")
+        print(e)
+        cur.execute("ROLLBACK")
+        conn.commit()
+    finally:
+        cur.close()
+
+
+def update_postgres(conn, table: str, values: dict, match_key: str):
+    list_update_cols = [k for k in values.keys() if k != match_key]
+    match_str_fmt = f"{match_key} = %({match_key})s"
+    set_str_fmt = ", ".join([f"{k} = %({k})s" for k in list_update_cols])
+    query = f"UPDATE {table} SET {set_str_fmt} WHERE {match_str_fmt}"
+
+    cur = None
+    try:
+        cur = conn.cursor()
+        cur.execute(query, values)
+        conn.commit()
+
+    except Exception as e:
+        print(f"ERROR UPDATING {table}")
         print(e)
         cur.execute("ROLLBACK")
         conn.commit()
