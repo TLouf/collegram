@@ -141,6 +141,7 @@ class Replies(msgspec.Struct):
 
 
 class ReplyHeader(msgspec.Struct):
+    reply_to_top_id: Optional[int] = None
     reply_to_msg_id: Optional[int] = None
     reply_to_peer_id: Optional[Peer] = None
     forum_topic: Optional[bool] = None
@@ -198,6 +199,7 @@ NEW_MSG_FIELDS = {
     "from_id": pl.Utf8,
     "replies_to_msg_id": pl.Int64,
     "replies_to_chan_id": pl.Utf8,
+    "replies_to_thread_msg_id": pl.Int64,
     "fwd_from_date": pl.Datetime(time_zone="UTC"),
     "fwd_from_type": pl.Utf8,
     "fwd_from_id": pl.Utf8,
@@ -279,6 +281,9 @@ def messages_to_dict(messages: list[Message]):
             None
             if reply_to is None
             else getattr(reply_to.reply_to_peer_id, "channel_id", None)
+        )
+        m_dict["replies_to_thread_msg_id"].append(
+            getattr(reply_to, "reply_to_top_id", None)
         )
 
         fwd_from = m.fwd_from
