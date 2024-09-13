@@ -31,12 +31,16 @@ from telethon.tl.types import (
     MessageEntityMentionName,  # for users (has a `user_id` attr)
     MessageEntityTextUrl,  # has a `url` attr
     MessageEntityUrl,
+    MessageMediaDocument,
+    MessageMediaPhoto,
+    MessageMediaWebPage,
     MessageService,
     PeerUser,
 )
 from telethon.tl.types.messages import ChannelMessages
 
 import collegram.media
+import collegram.json
 from collegram.utils import LOCAL_FS
 
 if TYPE_CHECKING:
@@ -343,3 +347,78 @@ class ExtendedMessage(Message):
         d["text_urls"] = list(self.text_urls)
         d["text_mentions"] = list(self.text_mentions)
         return d
+
+
+def to_flat_dict(m: ExtendedMessage):
+    # can also determine nested from Message.__annotations__, but not super robust
+    non_nested_f = set(collegram.json.Message.__struct_fields__).difference(
+        collegram.json.DISCARDED_MSG_FIELDS
+    )
+    final_fields = non_nested_f.union(collegram.json.NEW_MSG_FIELDS.keys()).union(
+        collegram.json.CHANGED_MSG_FIELDS.keys()
+    )
+    m_dict = {field: None for field in final_fields}
+    for field in non_nested_f:
+        m_dict[field] = getattr(m, field)
+
+    media = m.media
+    if media is not None:
+        # TODO: save media separately? like whole JSON / parquets of photos / videos
+        # / web pages / documents
+        if isinstance(media, MessageMediaPhoto):
+            m_dict["media_type"] = "photo"
+            m_dict["media_id"] = media.photo.id
+        elif isinstance(media, MessageMediaWebPage):
+            m_dict["media_type"] = "webpage"
+            m_dict["media_id"] = media.webpage.id
+        elif isinstance(media, MessageMediaDocument):
+            if media.video:
+                m_dict["media_type"] = "video"
+            elif media.voice:
+                m_dict["media_type"] = "voice"
+            else:
+                m_dict["media_type"] = "document"
+            m_dict["media_id"] = media.document.id
+        else:
+            m_dict["media_type"] = "other"
+
+    from_id = m.from_id
+    if from_id is not None:
+        m_dict["from_type"] = from_id._
+        m_dict["from_id"] = getattr(from_id, collegram.json.PEER_TYPES_ID[from_id._])
+
+    reply_to = m.reply_to
+    if reply_to is not None:
+        m_dict["replies_to_msg_id"] = getattr(reply_to, "reply_to_msg_id")
+        m_dict["replies_to_chan_id"] = getattr(reply_to.reply_to_peer_id, "channel_id")
+        m_dict["replies_to_thread_msg_id"] = getattr(reply_to, "reply_to_top_id")
+
+    fwd_from = m.fwd_from
+    if fwd_from is not None:
+        m_dict["fwd_from_date"] = fwd_from.date
+        m_dict["fwd_from_msg_id"] = fwd_from.channel_post
+        if fwd_from.from_id is not None:
+            m_dict["fwd_from_type"] = fwd_from.from_id._
+            m_dict["fwd_from_id"] = getattr(
+                fwd_from.from_id, collegram.json.PEER_TYPES_ID[fwd_from.from_id._]
+            )
+
+    replies = m.replies
+    if replies is not None:
+        m_dict["nr_replies"] = replies.replies
+        m_dict["has_comments"] = replies.comments
+    else:
+        m_dict["nr_replies"] = 0
+        m_dict["has_comments"] = False
+
+    if m.reactions is not None:
+        # There can be big number of different reactions, so keep this as dict
+        # (converted to struct by Polars).
+        reaction_d = {}
+        if m.reactions.results is not None:
+            for r in m.reactions.results:
+                # Cast `document_id` to string to have consistent type.
+                key = r.reaction.emoticon or str(r.reaction.document_id)
+                reaction_d[key] = r.count
+        m_dict["reactions"] = reaction_d
+    return m_dict
