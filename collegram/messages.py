@@ -41,7 +41,7 @@ from collegram.utils import LOCAL_FS
 
 if TYPE_CHECKING:
     from pathlib import Path
-    from typing import Callable, Iterable
+    from typing import Iterable
 
     from fsspec import AbstractFileSystem
     from telethon import TelegramClient
@@ -101,37 +101,58 @@ async def save_channel_messages(
     media_save_path: Path,
     offset_id=0,
     fs: AbstractFileSystem = LOCAL_FS,
-    message_json_callback: Callable | None = None,
 ):
     """
     offset_id: messages with ID superior to `offset_id` will be retrieved
     """
-    # Telethon docs are misleading, `offset_date` is in fact a datetime.
     with fs.open(messages_save_path, "a") as f:
-        async for message in client.iter_messages(
-            entity=channel,
-            offset_date=dt_from,
+        async for m in yield_channel_messages(
+            client,
+            channel,
+            dt_from,
+            dt_to,
+            forwards_set,
+            anon_func,
+            media_save_path,
             offset_id=offset_id,
-            reverse=True,
+            fs=fs,
         ):
-            # Take messages in until we've reached `dt_to` (works because
-            # `iter_messages` gets messages in reverse chronological order by default,
-            # and we reversed it)
-            if message.date <= dt_to:
-                preprocessed_m = preprocess(
-                    message,
-                    forwards_set,
-                    anon_func,
-                    media_save_path,
-                    fs=fs,
-                )
-                output_json = preprocessed_m.to_json()
-                f.write(output_json)
-                f.write("\n")
-                if message_json_callback is not None:
-                    message_json_callback(output_json)
-            else:
-                break
+            f.write(m.to_json())
+            f.write("\n")
+
+
+async def yield_channel_messages(
+    client: TelegramClient,
+    channel: TypeInputChannel,
+    dt_from: datetime.datetime,
+    dt_to: datetime.datetime,
+    forwards_set: set[int],
+    anon_func,
+    media_save_path: Path,
+    offset_id=0,
+    fs: AbstractFileSystem = LOCAL_FS,
+):
+    # Telethon docs are misleading, `offset_date` is in fact a datetime.
+    async for message in client.iter_messages(
+        entity=channel,
+        offset_date=dt_from,
+        offset_id=offset_id,
+        reverse=True,
+    ):
+        # Take messages in until we've reached `dt_to` (works because
+        # `iter_messages` gets messages in reverse chronological order by default,
+        # and we reversed it)
+        if message.date <= dt_to:
+            preprocessed_m = preprocess(
+                message,
+                forwards_set,
+                anon_func,
+                media_save_path,
+                fs=fs,
+            )
+            yield preprocessed_m
+        else:
+            break
 
 
 def query_channel_messages(
