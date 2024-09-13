@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime
 import inspect
 import logging
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING
 
 from telethon.errors import MsgIdInvalidError
 from telethon.helpers import add_surrogate
@@ -41,6 +41,7 @@ from collegram.utils import LOCAL_FS
 
 if TYPE_CHECKING:
     from pathlib import Path
+    from typing import Callable, Iterable
 
     from fsspec import AbstractFileSystem
     from telethon import TelegramClient
@@ -100,6 +101,7 @@ async def save_channel_messages(
     media_save_path: Path,
     offset_id=0,
     fs: AbstractFileSystem = LOCAL_FS,
+    message_json_callback: Callable | None = None,
 ):
     """
     offset_id: messages with ID superior to `offset_id` will be retrieved
@@ -123,8 +125,11 @@ async def save_channel_messages(
                     media_save_path,
                     fs=fs,
                 )
-                f.write(preprocessed_m.to_json())
+                output_json = preprocessed_m.to_json()
+                f.write(output_json)
                 f.write("\n")
+                if message_json_callback is not None:
+                    message_json_callback(output_json)
             else:
                 break
 
