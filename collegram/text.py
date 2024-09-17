@@ -15,11 +15,15 @@ def get_clean_chan_text(full_channel_d: dict):
         if c["id"] == full_channel_d["full_chat"]["id"]
     ][0]
     title = channel_d.get("title", "")
-    clean_text = f"{title}. {full_channel_d['full_chat'].get('about', '')}"
+    text = f"{title}. {full_channel_d['full_chat'].get('about', '')}"
+    return clean_text(text)
+
+
+def clean_text(s: str):
     hash_at_pattern = r"(?:^|\B)((@|#)\w+)(?:$|\b)"
     url_pattern = r"(?:^|\s)(\S+\/t.co\/\S+)(?:$|\b)"
     regex_filter = re.compile("({})|({})".format(hash_at_pattern, url_pattern))
-    clean_text = regex_filter.sub("", clean_text)
+    clean_text = regex_filter.sub("", s)
     return clean_text
 
 
