@@ -8,6 +8,7 @@ from telethon.tl.types import (
     MessageMediaDocument,
     MessageMediaPhoto,
     MessageMediaWebPage,
+    TypePhotoSize,
 )
 
 from collegram.utils import LOCAL_FS
@@ -60,6 +61,7 @@ def download_from_message_id(
     channel: TypeInputChannel,
     message_id: int,
     savedir_path: Path,
+    thumb: TypePhotoSize | int | None = None,
     fs: AbstractFileSystem = LOCAL_FS,
 ):
     """Download a media attached to a message.
@@ -87,18 +89,21 @@ def download_from_message_id(
     """
     m = client.loop.run_until_complete(client.get_messages(channel, ids=message_id))
     if m.media is not None:
-        return download(client, m.media, savedir_path, fs=fs)
+        return download(client, m.media, savedir_path, fs=fs, thumb=thumb)
 
 
 def download(
     client: TelegramClient,
     media: TypeMessageMedia,
     savedir_path: Path,
+    thumb: TypePhotoSize | int | None = None,
     fs: AbstractFileSystem = LOCAL_FS,
 ):
     media_id = preprocess(media, savedir_path, fs=fs)
     try:
         with fs.open(str(savedir_path / f"{media_id}"), "wb") as f:
-            return client.loop.run_until_complete(client.download_media(media, f))
+            return client.loop.run_until_complete(
+                client.download_media(media, f, thumb=thumb)
+            )
     except FileReferenceExpiredError:
         logger.warning(f"Reference expired for media {media_id}")
