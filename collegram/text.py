@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from lingua import LanguageDetector
 
 
-def get_clean_chan_text(full_channel_d: dict):
+def get_chan_text(full_channel_d: dict):
     # TODO: maybe add a sample of messages?
     channel_d = [
         c
@@ -16,7 +16,7 @@ def get_clean_chan_text(full_channel_d: dict):
     ][0]
     title = channel_d.get("title", "")
     text = f"{title}. {full_channel_d['full_chat'].get('about', '')}"
-    return clean_text(text)
+    return text
 
 
 def clean_text(s: str):
@@ -31,7 +31,8 @@ def detect_chan_lang(
     full_channel_d: dict, lang_detector: LanguageDetector
 ) -> str | None:
     # TODO:  handle multilingual?
-    text = get_clean_chan_text(full_channel_d)
+    text = get_chan_text(full_channel_d)
+    text = clean_text(text)
     lang = lang_detector.detect_language_of(text)
     lang_code = None if lang is None else lang.iso_code_639_1.name
     return lang_code
