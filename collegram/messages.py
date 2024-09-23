@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import inspect
 import logging
+import re
 from typing import TYPE_CHECKING
 
 from telethon.errors import MsgIdInvalidError
@@ -39,8 +40,8 @@ from telethon.tl.types import (
 )
 from telethon.tl.types.messages import ChannelMessages
 
-import collegram.media
 import collegram.json
+import collegram.media
 from collegram.utils import LOCAL_FS
 
 if TYPE_CHECKING:
@@ -100,6 +101,7 @@ async def save_channel_messages(
     dt_from: datetime.datetime,
     dt_to: datetime.datetime,
     forwards_set: set[int],
+    linked_chans: set[str],
     anon_func,
     messages_save_path,
     media_save_path: Path,
@@ -116,6 +118,7 @@ async def save_channel_messages(
             dt_from,
             dt_to,
             forwards_set,
+            linked_chans,
             anon_func,
             media_save_path,
             offset_id=offset_id,
@@ -131,6 +134,7 @@ async def yield_channel_messages(
     dt_from: datetime.datetime,
     dt_to: datetime.datetime,
     forwards_set: set[int],
+    linked_chans: set[str],
     anon_func,
     media_save_path: Path,
     offset_id=0,
@@ -150,6 +154,7 @@ async def yield_channel_messages(
             preprocessed_m = preprocess(
                 message,
                 forwards_set,
+                linked_chans,
                 anon_func,
                 media_save_path,
                 fs=fs,
@@ -182,6 +187,7 @@ def get_channel_messages_count(
 def preprocess(
     message: Message | MessageService,
     forwards_set: set[int],
+    linked_chans: set[str],
     anon_func,
     media_save_path: Path,
     fs: AbstractFileSystem = LOCAL_FS,
@@ -189,7 +195,9 @@ def preprocess(
     preproced_message = message  # TODO: copy?
     if isinstance(message, Message):
         preproced_message = ExtendedMessage.from_message(preproced_message)
-        preproced_message = preprocess_entities(preproced_message, anon_func)
+        preproced_message = preprocess_entities(
+            preproced_message, linked_chans, anon_func
+        )
         if preproced_message.media is not None:
             _ = collegram.media.preprocess(
                 preproced_message.media,
@@ -204,12 +212,15 @@ def del_surrogate(text):
     return text.encode("utf-16", "surrogatepass").decode("utf-16", "surrogatepass")
 
 
-def preprocess_entities(message: ExtendedMessage, anon_func) -> ExtendedMessage:
+def preprocess_entities(
+    message: ExtendedMessage, linked_chans: set[str], anon_func
+) -> ExtendedMessage:
     anon_message = message  # TODO: copy?
     surr_text = add_surrogate(message.message)
 
     if message.entities is not None:
         anon_subs = [(0, 0, "")]
+        entities = []
         for e in message.entities:
             e_start = e.offset
             e_end = e.offset + e.length
@@ -224,10 +235,30 @@ def preprocess_entities(message: ExtendedMessage, anon_func) -> ExtendedMessage:
                 # Keep the email format to be able to identify this as an email later on.
                 anon_email = "@".join([anon_func(part) for part in email.split("@")])
                 anon_subs.append((e_start, e_end, anon_email))
-            elif isinstance(e, MessageEntityUrl):
-                anon_message.text_urls.add(del_surrogate(surr_text[e_start:e_end]))
-            elif isinstance(e, MessageEntityTextUrl):
-                anon_message.text_urls.add(e.url)
+            elif isinstance(e, (MessageEntityUrl, MessageEntityTextUrl)):
+                url = (
+                    e.url
+                    if isinstance(e, MessageEntityTextUrl)
+                    else del_surrogate(surr_text[e_start:e_end])
+                )
+                username_match = re.match(r"(https://t\.me/)(\w+)(.*)", url)
+                if username_match is None:
+                    anon_message.text_urls.add(url)
+                else:
+                    un = username_match.group(2)
+                    linked_chans.add(un)
+                    anon_url = username_match.expand(
+                        r"\g<1>{}\g<3>".format(anon_func(un))
+                    )
+                    anon_message.text_urls.add(anon_url)
+                    if isinstance(e, MessageEntityTextUrl):
+                        e.url = anon_url
+                    anon_subs.append((e_start, e_end, anon_url))
+
+            # For some reason, message.entities gets emptied as we make changes above,
+            # hence why we reassign the list at the end here.
+            entities.append(e)
+        anon_message.entities = entities
 
         if len(anon_subs) > 1:
             anon_message.message = del_surrogate(
