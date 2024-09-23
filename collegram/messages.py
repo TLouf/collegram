@@ -230,7 +230,7 @@ def preprocess_entities(message: ExtendedMessage, anon_func) -> ExtendedMessage:
                 anon_message.text_urls.add(e.url)
 
         if len(anon_subs) > 1:
-            anon_message.text = del_surrogate(
+            anon_message.message = del_surrogate(
                 "".join(
                     [
                         surr_text[anon_subs[i][1] : anon_subs[i + 1][0]]
