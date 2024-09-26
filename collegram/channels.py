@@ -261,22 +261,27 @@ def anon_full_dict(full_dict: dict, anonymiser: HMAC_anonymiser, safe=True):
 def get_explo_priority(
     lang_code: str,
     messages_count: int,
-    participants_count: int,
+    participants_count: int | None,
     lifespan_seconds: int,
     distance_from_core: int,
     nr_forwarding_channels: int,
     nr_recommending_channels: int,
     lang_priorities: dict,
     acty_slope: float = 1,
-    acty_inflexion: float = 0.1,  # 10 messages per day for channel of 100 users
+    acty_inflexion: int = 100,  # 100 messages per day
+    acty_user_inflexion: float = 0.1,  # 10 messages per day for channel of 100 users
 ):
     # Returns a score between 0 and 1. Here the lowest the returned score, the more
     # priority the channel is given for message collection.
     lang_score = lang_priorities.get(lang_code, 1)
-    acty_per_user_day = (
-        messages_count / participants_count / (lifespan_seconds / 3600 / 24)
-    )
-    acty_score = 1 / (1 + (acty_inflexion / acty_per_user_day) ** acty_slope)
+    if participants_count is None:
+        acty_per_day = messages_count / (lifespan_seconds / 3600 / 24)
+        acty_score = 1 / (1 + (acty_inflexion / acty_per_day) ** acty_slope)
+    else:
+        acty_per_user_day = (
+            messages_count / participants_count / (lifespan_seconds / 3600 / 24)
+        )
+        acty_score = 1 / (1 + (acty_user_inflexion / acty_per_user_day) ** acty_slope)
     # With the following, for instance if channel is forwarded from by two core channels
     # (dist = 0), it will be prioritised over other core channels. And if channel is
     # recommended in / fowarded from n times more than another at the same distance from
