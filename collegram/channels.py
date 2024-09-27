@@ -266,6 +266,7 @@ def get_explo_priority(
     distance_from_core: int,
     nr_forwarding_channels: int,
     nr_recommending_channels: int,
+    nr_linking_channels: int,
     lang_priorities: dict,
     acty_slope: float = 1,
     acty_inflexion: int = 100,  # 100 messages per day
@@ -287,7 +288,7 @@ def get_explo_priority(
     # recommended in / fowarded from n times more than another at the same distance from
     # the core, it will have a priority ~n times smaller.
     central_score = (distance_from_core + 1) / (
-        1 + nr_recommending_channels + nr_forwarding_channels
+        1 + nr_recommending_channels + nr_forwarding_channels + nr_linking_channels
     )
     # We threshold acty_score to 1e-3 so that it doesn't dominate all others.
     return lang_score * max(acty_score, 1e-3) * min(central_score, 1)
