@@ -259,7 +259,7 @@ def anon_full_dict(full_dict: dict, anonymiser: HMAC_anonymiser, safe=True):
 
 
 def get_explo_priority(
-    lang_code: str,
+    lang_code: str | None,
     messages_count: int,
     participants_count: int | None,
     lifespan_seconds: int,
