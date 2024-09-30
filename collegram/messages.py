@@ -415,8 +415,9 @@ def to_flat_dict(m: ExtendedMessage):
 
     from_id = m.from_id
     if from_id is not None:
-        m_dict["from_type"] = from_id._
-        m_dict["from_id"] = getattr(from_id, collegram.json.PEER_TYPES_ID[from_id._])
+        from_type = type(from_id).__name__
+        m_dict["from_type"] = from_type
+        m_dict["from_id"] = getattr(from_id, collegram.json.PEER_TYPES_ID[from_type])
 
     reply_to = m.reply_to
     if reply_to is not None:
@@ -431,9 +432,10 @@ def to_flat_dict(m: ExtendedMessage):
         m_dict["fwd_from_date"] = fwd_from.date
         m_dict["fwd_from_msg_id"] = fwd_from.channel_post
         if fwd_from.from_id is not None:
-            m_dict["fwd_from_type"] = fwd_from.from_id._
+            fwd_from_type = type(fwd_from.from_id).__name__
+            m_dict["fwd_from_type"] = fwd_from_type
             m_dict["fwd_from_id"] = getattr(
-                fwd_from.from_id, collegram.json.PEER_TYPES_ID[fwd_from.from_id._]
+                fwd_from.from_id, collegram.json.PEER_TYPES_ID[fwd_from_type]
             )
 
     replies = m.replies
