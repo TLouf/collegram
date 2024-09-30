@@ -65,7 +65,6 @@ class Message(MessageBase):
     edit_date: Optional[datetime.datetime] = None
     reactions: Optional[Reactions] = None
     from_id: Optional[Peer] = None
-    comments_msg_id: Optional[int] = None  # DEPRECATED
     media: Optional[MessageMediaTypes] = None
     fwd_from: Optional[FwdFrom] = None
     replies: Optional[Replies] = None
