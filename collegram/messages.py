@@ -420,9 +420,11 @@ def to_flat_dict(m: ExtendedMessage):
 
     reply_to = m.reply_to
     if reply_to is not None:
-        m_dict["replies_to_msg_id"] = getattr(reply_to, "reply_to_msg_id")
-        m_dict["replies_to_chan_id"] = getattr(reply_to.reply_to_peer_id, "channel_id")
-        m_dict["replies_to_thread_msg_id"] = getattr(reply_to, "reply_to_top_id")
+        m_dict["replies_to_msg_id"] = reply_to.reply_to_msg_id
+        m_dict["replies_to_thread_msg_id"] = reply_to.reply_to_top_id
+        m_dict["replies_to_chan_id"] = getattr(
+            reply_to.reply_to_peer_id, "channel_id", None
+        )
 
     fwd_from = m.fwd_from
     if fwd_from is not None:
