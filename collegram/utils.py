@@ -123,6 +123,7 @@ def insert_into_postgres(conn, table: str, values: dict | list[dict]):
     except Exception as e:
         print(f"ERROR INSERTING {table}")
         print(e)
+        print(v)
         cur.execute("ROLLBACK")
         conn.commit()
     finally:
@@ -144,6 +145,7 @@ def update_postgres(conn, table: str, values: dict, match_key: str):
     except Exception as e:
         print(f"ERROR UPDATING {table}")
         print(e)
+        print(values)
         cur.execute("ROLLBACK")
         conn.commit()
     finally:
