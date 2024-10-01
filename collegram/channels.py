@@ -596,13 +596,13 @@ CHANGED_CHAN_FIELDS = {
     "id": pl.Utf8,
     "linked_chat_id": pl.Utf8,
     "migrated_from_chat_id": pl.Utf8,
-    "forwards_from": pl.List(pl.Utf8),
     "usernames": pl.List(pl.Utf8),
     "migrated_to": pl.Utf8,
 }
 NEW_CHAN_FIELDS = {
     "bot_ids": pl.List(pl.Int64),
     "linked_chats_ids": pl.List(pl.Utf8),
+    "forwards_from": pl.List(pl.Utf8),
     "recommended_channels": pl.List(pl.Utf8),
     "location_point": pl.List(pl.Float64),
     "location_str": pl.Utf8,
@@ -668,7 +668,11 @@ def get_pl_schema():
         **inspect.getfullargspec(Channel).annotations,
         **inspect.getfullargspec(ChannelFull).annotations,
     }
-    discarded_args = DISCARDED_CHAN_FIELDS + DISCARDED_CHAN_FULL_FIELDS
+    discarded_args = (
+        DISCARDED_CHAN_FIELDS
+        + DISCARDED_CHAN_FULL_FIELDS
+        + tuple(CHANGED_CHAN_FIELDS.keys())
+    )
     chan_schema = {
         arg: collegram.utils.py_to_pl_types(annots[arg])
         for arg in set(annots.keys()).difference(discarded_args)
