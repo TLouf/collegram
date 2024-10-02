@@ -381,16 +381,11 @@ class ExtendedMessage(Message):
 
 
 def to_flat_dict(m: ExtendedMessage):
-    # can also determine nested from Message.__annotations__, but not super robust
-    non_nested_f = set(collegram.json.Message.__struct_fields__).difference(
-        collegram.json.DISCARDED_MSG_FIELDS
-    )
-    final_fields = non_nested_f.union(collegram.json.NEW_MSG_FIELDS.keys()).union(
-        collegram.json.CHANGED_MSG_FIELDS.keys()
-    )
-    m_dict = {field: None for field in final_fields}
-    for field in non_nested_f:
-        m_dict[field] = getattr(m, field)
+    m_dict = m.to_dict()
+    for field in collegram.json.NEW_MSG_FIELDS.keys():
+        m_dict[field] = None
+    for field in collegram.json.DISCARDED_MSG_FIELDS:
+        m_dict.pop(field)
 
     media = m.media
     if media is not None:

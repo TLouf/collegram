@@ -195,7 +195,6 @@ NEW_MSG_FIELDS = {
     "media_type": pl.Utf8,
     "media_id": pl.Int64,
     "from_type": pl.Utf8,
-    "from_id": pl.Utf8,
     "replies_to_msg_id": pl.Int64,
     "replies_to_chan_id": pl.Utf8,
     "replies_to_thread_msg_id": pl.Int64,
@@ -208,14 +207,13 @@ NEW_MSG_FIELDS = {
 }
 CHANGED_MSG_FIELDS = {
     "reactions": pl.Struct,
+    "from_id": pl.Utf8,
 }
 DISCARDED_MSG_FIELDS = (
     "media",
-    "from_id",
     "reply_to",
     "fwd_from",
     "replies",
-    "reactions",
 )
 
 
