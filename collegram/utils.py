@@ -130,9 +130,11 @@ def insert_into_postgres(conn, table: str, values: dict | list[dict]):
         cur.close()
 
 
-def update_postgres(conn, table: str, values: dict, match_key: str):
-    list_update_cols = [k for k in values.keys() if k != match_key]
-    match_str_fmt = f"{match_key} = %({match_key})s"
+def update_postgres(conn, table: str, values: dict, match_keys: str | list[str]):
+    if isinstance(match_keys, str):
+        match_keys = [match_keys]
+    list_update_cols = [k for k in values.keys() if k not in match_keys]
+    match_str_fmt = " AND ".join([f"{k} = %({k})s" for k in match_keys])
     set_str_fmt = ", ".join([f"{k} = %({k})s" for k in list_update_cols])
     query = f"UPDATE {table} SET {set_str_fmt} WHERE {match_str_fmt}"
 
