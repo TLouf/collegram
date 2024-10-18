@@ -252,7 +252,13 @@ if __name__ == "__main__":
                 is_last_saved_period = (
                     len(existing_files) > 0 and messages_save_path == existing_files[-1]
                 )
-                if not messages_save_path.exists() or is_last_saved_period:
+                if (
+                    not (
+                        messages_save_path.exists()
+                        or messages_save_path.with_suffix(".jsonl.gz").exists()
+                    )
+                    or is_last_saved_period
+                ):
                     offset_id = 0
                     if is_last_saved_period:
                         # Get the offset in case collection was unexpectedly interrupted
