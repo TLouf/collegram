@@ -8,15 +8,9 @@ dependencies:
   - jupyter_server
   - matplotlib
   - numpy
-  - scipy
   - polars
   - pip:
     # local package
-    - -e .
-    # For faster media DL:
-    - cryptg
-    - python-dotenv
-    - tqdm
-    - lingua-language-detector
+    - -e .[scripts,media]
     - pre-commit
     - git+https://github.com/TLouf/plots.git
