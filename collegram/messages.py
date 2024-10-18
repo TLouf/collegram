@@ -37,6 +37,8 @@ from telethon.tl.types import (
     MessageMediaWebPage,
     MessageService,
     PeerUser,
+    ReactionCustomEmoji,
+    ReactionEmoji,
 )
 from telethon.tl.types.messages import ChannelMessages
 
@@ -100,8 +102,8 @@ async def save_channel_messages(
     channel: TypeInputChannel,
     dt_from: datetime.datetime,
     dt_to: datetime.datetime,
-    forwards_stats: dict[int, dict],
-    linked_chans_stats: dict[str, dict],
+    forwards_set: set[int],
+    linked_chans: set[str],
     anon_func,
     messages_save_path,
     media_save_path: Path,
@@ -117,8 +119,8 @@ async def save_channel_messages(
             channel,
             dt_from,
             dt_to,
-            forwards_stats,
-            linked_chans_stats,
+            forwards_set,
+            linked_chans,
             anon_func,
             media_save_path,
             offset_id=offset_id,
@@ -133,8 +135,8 @@ async def yield_channel_messages(
     channel: TypeInputChannel,
     dt_from: datetime.datetime,
     dt_to: datetime.datetime,
-    forwards_stats: dict[int, dict],
-    linked_chans_stats: dict[str, dict],
+    forwards_set: set[int],
+    linked_chans: set[str],
     anon_func,
     media_save_path: Path,
     offset_id=0,
@@ -153,8 +155,8 @@ async def yield_channel_messages(
         if message.date <= dt_to:
             preprocessed_m = preprocess(
                 message,
-                forwards_stats,
-                linked_chans_stats,
+                forwards_set,
+                linked_chans,
                 anon_func,
                 media_save_path,
                 fs=fs,
@@ -186,8 +188,8 @@ def get_channel_messages_count(
 
 def preprocess(
     message: Message | MessageService,
-    forwards_stats: dict[int, dict],
-    linked_chans_stats: dict[str, dict],
+    forwards_set: set[int],
+    linked_chans: set[str],
     anon_func,
     media_save_path: Path,
     fs: AbstractFileSystem = LOCAL_FS,
@@ -196,7 +198,7 @@ def preprocess(
     if isinstance(message, Message):
         preproced_message = ExtendedMessage.from_message(preproced_message)
         preproced_message = preprocess_entities(
-            preproced_message, linked_chans_stats, anon_func
+            preproced_message, linked_chans, anon_func
         )
         if preproced_message.media is not None:
             _ = collegram.media.preprocess(
@@ -204,7 +206,7 @@ def preprocess(
                 media_save_path,
                 fs=fs,
             )
-    preproced_message = anonymise_metadata(preproced_message, forwards_stats, anon_func)
+    preproced_message = anonymise_metadata(preproced_message, forwards_set, anon_func)
     return preproced_message
 
 
@@ -213,11 +215,10 @@ def del_surrogate(text):
 
 
 def preprocess_entities(
-    message: ExtendedMessage, linked_chans_stats: dict[str, dict], anon_func
+    message: ExtendedMessage, linked_chans: set[str], anon_func
 ) -> ExtendedMessage:
     anon_message = message  # TODO: copy?
     surr_text = add_surrogate(message.message)
-    msg_linked_chans = set()
 
     if message.entities is not None:
         anon_subs = [(0, 0, "")]
@@ -247,18 +248,7 @@ def preprocess_entities(
                     anon_message.text_urls.add(url)
                 else:
                     un = username_match.group(2)
-                    prev_len = len(msg_linked_chans)
-                    msg_linked_chans.add(un)
-                    if len(msg_linked_chans) > prev_len:
-                        linked_stats = linked_chans_stats.get(un, {})
-                        linked_stats["nr_messages"] = (
-                            linked_stats.get("nr_messages", 0) + 1
-                        )
-                        linked_stats["first_message_date"] = linked_stats.get(
-                            "first_message_date", message.date
-                        )
-                        linked_stats["last_message_date"] = message.date
-                        linked_chans_stats[un] = linked_stats
+                    linked_chans.add(un)
                     anon_url = username_match.expand(
                         r"\g<1>{}\g<3>".format(anon_func(un))
                     )
@@ -287,9 +277,7 @@ def preprocess_entities(
 
 
 def anonymise_metadata(
-    message: ExtendedMessage | MessageService,
-    forwards_stats: dict[int, dict],
-    anon_func,
+    message: ExtendedMessage | MessageService, forwards_set: set[int], anon_func
 ):
     message = anonymise_opt_peer(message, "peer_id", anon_func)
     message = anonymise_opt_peer(message, "from_id", anon_func)
@@ -309,13 +297,7 @@ def anonymise_metadata(
         if message.fwd_from is not None:
             fwd_from_channel_id = getattr(message.fwd_from.from_id, "channel_id", None)
             if fwd_from_channel_id is not None:
-                fwd_stats = forwards_stats.get(fwd_from_channel_id, {})
-                fwd_stats["nr_messages"] = fwd_stats.get("nr_messages", 0) + 1
-                fwd_stats["first_message_date"] = fwd_stats.get(
-                    "first_message_date", message.date
-                )
-                fwd_stats["last_message_date"] = message.date
-                forwards_stats[fwd_from_channel_id] = fwd_stats
+                forwards_set.add(fwd_from_channel_id)
             message.fwd_from = anonymise_opt_peer(
                 message.fwd_from, "from_id", anon_func
             )
@@ -467,8 +449,13 @@ def to_flat_dict(m: ExtendedMessage):
         reaction_d = {}
         if m.reactions.results is not None:
             for r in m.reactions.results:
-                # Cast `document_id` to string to have consistent type.
-                key = r.reaction.emoticon or str(r.reaction.document_id)
+                if isinstance(r.reaction, ReactionEmoji):
+                    key = r.reaction.emoticon
+                elif isinstance(r.reaction, ReactionCustomEmoji):
+                    # Cast `document_id` to string to have consistent type.
+                    key = str(r.reaction.document_id)
+                else:
+                    continue
                 reaction_d[key] = r.count
         m_dict["reactions"] = reaction_d
     return m_dict
