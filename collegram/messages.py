@@ -10,6 +10,7 @@ from telethon.errors import MsgIdInvalidError
 from telethon.helpers import add_surrogate
 from telethon.tl.functions.messages import SearchRequest
 from telethon.tl.types import (
+    Document,
     InputMessagesFilterDocument,
     InputMessagesFilterEmpty,
     InputMessagesFilterGif,
@@ -35,10 +36,14 @@ from telethon.tl.types import (
     MessageMediaDocument,
     MessageMediaPhoto,
     MessageMediaWebPage,
+    MessageReplyHeader,
     MessageService,
     PeerUser,
+    Photo,
     ReactionCustomEmoji,
     ReactionEmoji,
+    WebPage,
+    WebPageNotModified,
 )
 from telethon.tl.types.messages import ChannelMessages
 
@@ -413,12 +418,20 @@ def to_flat_dict(m: ExtendedMessage):
     if media is not None:
         # TODO: save media separately? like whole JSON / parquets of photos / videos
         # / web pages / documents
-        if isinstance(media, MessageMediaPhoto):
-            m_dict["media_type"] = "photo"
-            m_dict["media_id"] = media.photo.id
-        elif isinstance(media, MessageMediaWebPage):
+        if isinstance(media, MessageMediaWebPage):
             m_dict["media_type"] = "webpage"
-            m_dict["media_id"] = media.webpage.id
+            if not isinstance(media.webpage, WebPageNotModified):
+                m_dict["media_id"] = media.webpage.id
+                m_dict["webpage_preview_url"] = media.webpage.url
+            if isinstance(media.webpage, WebPage):
+                m_dict["webpage_preview_type"] = media.webpage.type
+                m_dict["webpage_preview_site_name"] = media.webpage.site_name
+                m_dict["webpage_preview_title"] = media.webpage.title
+                m_dict["webpage_preview_description"] = media.webpage.description
+        elif isinstance(media, MessageMediaPhoto):
+            m_dict["media_type"] = "photo"
+            if isinstance(media.photo, Photo):
+                m_dict["media_id"] = media.photo.id
         elif isinstance(media, MessageMediaDocument):
             if media.video:
                 m_dict["media_type"] = "video"
@@ -426,7 +439,8 @@ def to_flat_dict(m: ExtendedMessage):
                 m_dict["media_type"] = "voice"
             else:
                 m_dict["media_type"] = "document"
-            m_dict["media_id"] = media.document.id
+            if isinstance(media.document, Document):
+                m_dict["media_id"] = media.document.id
         else:
             m_dict["media_type"] = "other"
 
@@ -437,7 +451,7 @@ def to_flat_dict(m: ExtendedMessage):
         m_dict["from_id"] = getattr(from_id, collegram.json.PEER_TYPES_ID[from_type])
 
     reply_to = m.reply_to
-    if reply_to is not None:
+    if isinstance(reply_to, MessageReplyHeader):
         m_dict["replies_to_msg_id"] = reply_to.reply_to_msg_id
         m_dict["replies_to_thread_msg_id"] = reply_to.reply_to_top_id
         m_dict["replies_to_chan_id"] = getattr(
