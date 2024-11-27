@@ -95,8 +95,21 @@ class MessageMediaDocument(MessageMediaBase):
     voice: Optional[bool] = None
 
 
+class MediaType(msgspec.Struct):
+    id: int
+
+
 class MessageMediaWebPage(MessageMediaBase):
-    webpage: MediaType
+    webpage: WebPagePreview
+
+
+class WebPagePreview(msgspec.Struct):
+    id: int
+    url: Optional[str] = None
+    type: Optional[str] = None
+    site_name: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
 
 
 ignored_media_structs = [
@@ -123,10 +136,6 @@ MessageMediaTypes = Union[
         + ignored_media_structs
     )
 ]
-
-
-class MediaType(msgspec.Struct):
-    id: int
 
 
 class FwdFrom(msgspec.Struct):
@@ -194,6 +203,11 @@ def yield_message(
 NEW_MSG_FIELDS = {
     "media_type": pl.Utf8,
     "media_id": pl.Int64,
+    "webpage_preview_url": pl.Utf8,
+    "webpage_preview_type": pl.Utf8,
+    "webpage_preview_site_name": pl.Utf8,
+    "webpage_preview_title": pl.Utf8,
+    "webpage_preview_description": pl.Utf8,
     "from_type": pl.Utf8,
     "from_id": pl.Utf8,
     "replies_to_msg_id": pl.Int64,
@@ -244,26 +258,42 @@ def messages_to_dict(messages: list[Message]):
         if media is not None:
             # TODO: save media separately? like whole JSON / parquets of photos / videos
             # / web pages / documents
-            if isinstance(media, MessageMediaPhoto):
-                m_dict["media_type"].append("photo")
-                m_dict["media_id"].append(media.photo.id)
-            elif isinstance(media, MessageMediaWebPage):
+            if isinstance(media, MessageMediaWebPage):
                 m_dict["media_type"].append("webpage")
                 m_dict["media_id"].append(media.webpage.id)
-            elif isinstance(media, MessageMediaDocument):
-                if media.video:
-                    m_dict["media_type"].append("video")
-                elif media.voice:
-                    m_dict["media_type"].append("voice")
-                else:
-                    m_dict["media_type"].append("document")
-                m_dict["media_id"].append(media.document.id)
+                m_dict["webpage_preview_url"].append(media.webpage.url)
+                m_dict["webpage_preview_type"].append(media.webpage.type)
+                m_dict["webpage_preview_site_name"].append(media.webpage.site_name)
+                m_dict["webpage_preview_title"].append(media.webpage.title)
+                m_dict["webpage_preview_description"].append(media.webpage.description)
             else:
-                m_dict["media_type"].append("other")
-                m_dict["media_id"].append(None)
+                if isinstance(media, MessageMediaPhoto):
+                    m_dict["media_type"].append("photo")
+                    m_dict["media_id"].append(media.photo.id)
+                elif isinstance(media, MessageMediaDocument):
+                    if media.video:
+                        m_dict["media_type"].append("video")
+                    elif media.voice:
+                        m_dict["media_type"].append("voice")
+                    else:
+                        m_dict["media_type"].append("document")
+                    m_dict["media_id"].append(media.document.id)
+                else:
+                    m_dict["media_type"].append("other")
+                    m_dict["media_id"].append(None)
+                m_dict["webpage_preview_url"].append(None)
+                m_dict["webpage_preview_type"].append(None)
+                m_dict["webpage_preview_site_name"].append(None)
+                m_dict["webpage_preview_title"].append(None)
+                m_dict["webpage_preview_description"].append(None)
         else:
             m_dict["media_type"].append(None)
             m_dict["media_id"].append(None)
+            m_dict["webpage_preview_url"].append(None)
+            m_dict["webpage_preview_type"].append(None)
+            m_dict["webpage_preview_site_name"].append(None)
+            m_dict["webpage_preview_title"].append(None)
+            m_dict["webpage_preview_description"].append(None)
 
         from_id = m.from_id
         if from_id is not None:
