@@ -93,4 +93,4 @@ target/
 # Telethon sessions
 *.session*
 
-scripts/
+scripts/tests
