@@ -450,6 +450,12 @@ def to_flat_dict(m: ExtendedMessage):
         m_dict["from_type"] = from_type
         m_dict["from_id"] = getattr(from_id, collegram.json.PEER_TYPES_ID[from_type])
 
+    peer_id = m.peer_id
+    if peer_id is not None:
+        peer_type = type(peer_id).__name__
+        m_dict["peer_type"] = peer_type
+        m_dict["peer_id"] = getattr(peer_id, collegram.json.PEER_TYPES_ID[peer_type])
+
     reply_to = m.reply_to
     if isinstance(reply_to, MessageReplyHeader):
         m_dict["replies_to_msg_id"] = reply_to.reply_to_msg_id
