@@ -31,13 +31,13 @@ class UniquePriorityQueue(PriorityQueue):
         self.values = set()
 
     def _put(self, item: tuple[int, Any]):
-        if item[1] not in self.values:
-            self.values.add(item[1])
+        if item[-1] not in self.values:
+            self.values.add(item[-1])
             super()._put(item)
 
     def _get(self):
         item = super()._get()
-        self.values.remove(item[1])
+        self.values.remove(item[-1])
         return item
 
 
