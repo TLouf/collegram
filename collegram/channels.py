@@ -274,13 +274,13 @@ def get_recommended(
 @typing.overload
 def get_matching_chat_from_full(
     full_chat: ChatFull, channel_id: int | None = None
-) -> Channel:
-    ...
+) -> Channel: ...
 
 
 @typing.overload
-def get_matching_chat_from_full(full_chat: dict, channel_id: int | None = None) -> dict:
-    ...
+def get_matching_chat_from_full(
+    full_chat: dict, channel_id: int | None = None
+) -> dict: ...
 
 
 def get_matching_chat_from_full(
@@ -324,9 +324,9 @@ def recover_fwd_from_msgs(
                 if from_chan_id is not None:
                     chans_fwd_msg[from_chan_id] = {"id": m.id}
                     if m.reply_to is not None:
-                        chans_fwd_msg[from_chan_id][
-                            "reply_to"
-                        ] = m.reply_to.reply_to_msg_id
+                        chans_fwd_msg[from_chan_id]["reply_to"] = (
+                            m.reply_to.reply_to_msg_id
+                        )
 
     return chans_fwd_msg
 
