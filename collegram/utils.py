@@ -62,12 +62,10 @@ class HMAC_anonymiser:
             self.update_from_disk()
 
     @overload
-    def anonymise(self, data: int | str, safe: bool = False) -> str:
-        ...
+    def anonymise(self, data: int | str, safe: bool = False) -> str: ...
 
     @overload
-    def anonymise(self, data: None, safe: bool = False) -> None:
-        ...
+    def anonymise(self, data: None, safe: bool = False) -> None: ...
 
     def anonymise(self, data: int | str | None, safe: bool = False) -> str | None:
         """Anonymise the provided data.
@@ -177,7 +175,7 @@ def safe_dict_update(dict1, dict2, paths: list[str], list_entries_are_unique=Fal
                 for x in deeper_obj_out
                 if not list_entries_are_unique or x not in deeper_obj1
             ]
-        elif deeper_obj1 is not None and type(deeper_obj_out) != type(deeper_obj1):
+        elif deeper_obj1 is not None and type(deeper_obj_out) is not type(deeper_obj1):
             raise ValueError("Types not matching at provided paths")
     return dict_out
 
