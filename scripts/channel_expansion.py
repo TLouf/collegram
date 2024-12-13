@@ -12,13 +12,14 @@ from telethon.errors import (
     UsernameInvalidError,
 )
 
-import collegram
+import collegram as cg
+import collegram.channels as cgc
 
 if __name__ == "__main__":
     load_dotenv()
     key_name = "thomas"
 
-    paths = collegram.paths.ProjectPaths()
+    paths = cg.paths.ProjectPaths()
     logger = setup.init_logging(paths.proj / "scripts" / __file__)
     fpath_fwds_to_retrieve = paths.ext_data / "fpath_fwds_to_retrieve.jsonl"
 
@@ -35,7 +36,7 @@ if __name__ == "__main__":
     )
     # dt_from = dt_to - datetime.timedelta(days=31)
     pre = f"{key_name.upper()}_"
-    client = collegram.client.connect(
+    client = cg.client.connect(
         os.environ[f"{pre}API_ID"],
         os.environ[f"{pre}API_HASH"],
         os.environ[f"{pre}PHONE_NUMBER"],
@@ -45,20 +46,20 @@ if __name__ == "__main__":
         entity_cache_limit=10000,
         request_retries=1000,
     )
-    generic_anonymiser = collegram.utils.HMAC_anonymiser()
+    generic_anonymiser = cg.utils.HMAC_anonymiser()
 
     channels_first_seed = json.loads(
         (paths.interim_data / "channels_first_seed.json").read_text()
     )
-    channels_queue = collegram.utils.UniquePriorityQueue()
+    channels_queue = cg.utils.UniquePriorityQueue()
     for c_id, c_hash in channels_first_seed.items():
-        anonymiser = collegram.utils.HMAC_anonymiser()
+        anonymiser = cg.utils.HMAC_anonymiser()
         anon_id = anonymiser.anonymise(c_id)
-        chan_paths = collegram.paths.ChannelPaths(anon_id, paths)
+        chan_paths = cg.paths.ChannelPaths(anon_id, paths)
         anonymiser.save_path = chan_paths.anon_map
         anonymiser.update_from_disk()
         try:
-            _, full_chat_d = collegram.channels.get_full(
+            _, full_chat_d = cgc.get_full(
                 client,
                 paths,
                 anonymiser,
@@ -72,7 +73,7 @@ if __name__ == "__main__":
             # Here `ChannelInvalidError` cannot happen because first seed consists of
             # broadcast channels only.
             continue
-        prio = collegram.channels.get_explo_priority(
+        prio = cgc.get_explo_priority(
             full_chat_d,
             anonymiser,
             0,
@@ -95,10 +96,10 @@ if __name__ == "__main__":
             "private_chans_priority": private_chans_priority,
         }
         anon_channel_id = anonymiser.anonymise(channel_id)
-        chan_paths = collegram.paths.ChannelPaths(anon_channel_id, paths)
-        anonymiser = collegram.utils.HMAC_anonymiser(save_path=chan_paths.anon_map)
+        chan_paths = cg.paths.ChannelPaths(anon_channel_id, paths)
+        anonymiser = cg.utils.HMAC_anonymiser(save_path=chan_paths.anon_map)
         try:
-            listed_channel_full, listed_channel_full_d = collegram.channels.get_full(
+            listed_channel_full, listed_channel_full_d = cgc.get_full(
                 client,
                 paths,
                 anonymiser,
@@ -122,15 +123,15 @@ if __name__ == "__main__":
         for chat in listed_channel_full.chats:
             channel_id = chat.id
             anon_channel_id = anonymiser.anonymise(channel_id)
-            chan_paths = collegram.paths.ChannelPaths(anon_channel_id, paths)
-            anonymiser = collegram.utils.HMAC_anonymiser(save_path=chan_paths.anon_map)
+            chan_paths = cg.paths.ChannelPaths(anon_channel_id, paths)
+            anonymiser = cg.utils.HMAC_anonymiser(save_path=chan_paths.anon_map)
 
             if channel_id == listed_channel_full.full_chat.id:
                 channel_full = listed_channel_full
-                saved_channel_full_d = listed_channel_full_d
+                channel_full_d = listed_channel_full_d
             else:
                 try:
-                    channel_full, saved_channel_full_d = collegram.channels.get_full(
+                    channel_full, channel_full_d = cgc.get_full(
                         client,
                         paths,
                         anonymiser,
@@ -159,36 +160,41 @@ if __name__ == "__main__":
             )
 
             recommended_chans = {}
-            channel_full_d = json.loads(channel_full.to_json())
-            channel_full_d = collegram.channels.get_extended_save_data(
-                client,
-                chat,
-                channel_full_d,
-                anonymiser,
-                paths,
-                key_name,
-                recommended_chans,
-                **get_prio_kwargs,
-            )
+            for i in channel_full_d["recommended_channels"]:
+                rec_fc, rec_d = cgc.get_full(
+                    client,
+                    paths,
+                    anonymiser,
+                    key_name,
+                    channel_id=i,
+                )
+                rec_by = set(rec_d.get("recommended_by", []))
+                rec_by.add(anon_channel_id)
+                rec_d["recommended_by"] = list(rec_by)
+                recommended_chans[i] = cgc.get_explo_priority(
+                    rec_d, anonymiser, **get_prio_kwargs
+                )
+
+            output_channel_full_d = json.loads(channel_full.to_json())
             # yield here, or only do `get_extended_save_data`. to yield here, have to
             # get rid of `chat` (premium querier should return fullchat JSON), load
             # anonymiser, move get_anoned_full_dict out of get_extended_save_data and
             # run it here below
-            channel_full_d = collegram.channels.anon_full_dict(
-                channel_full_d,
+            output_channel_full_d = cgc.anon_full_dict(
+                output_channel_full_d,
                 anonymiser,
             )
             for key in ["recommended_channels", "forwards_from"]:
-                channel_full_d[key] = list(
-                    set(channel_full_d.get(key, [])).union(
-                        saved_channel_full_d.get(key, [])
+                output_channel_full_d[key] = list(
+                    set(output_channel_full_d.get(key, [])).union(
+                        channel_full_d.get(key, [])
                     )
                 )
-            collegram.channels.save(channel_full_d, paths, key_name)
-            chat_d = collegram.channels.get_matching_chat_from_full(channel_full_d)
+            cgc.save(output_channel_full_d, paths, key_name)
+            chat_d = cgc.get_matching_chat_from_full(output_channel_full_d)
             anon_channel_id = chat_d["id"]
             # try:
-            #     input_chat = collegram.channels.get_input_chan(
+            #     input_chat = cgc.get_input_chan(
             #         client, channel_full_d, key_name, channel_id,
             #     )
             # except (ChannelInvalidError, ChannelPrivateError, UsernameInvalidError, ValueError):
@@ -202,14 +208,14 @@ if __name__ == "__main__":
             media_save_path = paths.raw_data / "media"
 
             forwarded_chans = {}
-            for fwd_anon_id in set(channel_full_d["forwards_from"]):
+            for fwd_anon_id in set(output_channel_full_d["forwards_from"]):
                 fwd_id = anonymiser.inverse_anon_map.get(fwd_anon_id)
                 if fwd_id is None:
                     logger.error(f"issue with anon map of {channel_id}")
                     continue
 
                 try:
-                    _, full_chat_d = collegram.channels.get_full(
+                    _, full_chat_d = cgc.get_full(
                         client,
                         paths,
                         anonymiser,
@@ -229,7 +235,7 @@ if __name__ == "__main__":
                         f.write(json.dumps({channel_id: fwd_id}))
                         f.write("\n")
 
-                forwarded_chans[int(fwd_id)] = collegram.channels.get_explo_priority(
+                forwarded_chans[int(fwd_id)] = cgc.get_explo_priority(
                     full_chat_d,
                     anonymiser,
                     **get_prio_kwargs,
@@ -263,18 +269,16 @@ if __name__ == "__main__":
                     if is_last_saved_period:
                         # Get the offset in case collection was unexpectedly interrupted
                         # while writing for this time range.
-                        last_message_saved = collegram.utils.read_nth_to_last_line(
+                        last_message_saved = cg.utils.read_nth_to_last_line(
                             messages_save_path
                         )
                         # Check if not empty file before reading message
                         if last_message_saved:
-                            offset_id = collegram.json.read_message(
-                                last_message_saved
-                            ).id
+                            offset_id = cg.json.read_message(last_message_saved).id
 
                     # Save messages, don't get to avoid overflowing memory.
                     client.loop.run_until_complete(
-                        collegram.messages.save_channel_messages(
+                        cg.messages.save_channel_messages(
                             client,
                             input_chat,
                             dt_from,
@@ -290,7 +294,7 @@ if __name__ == "__main__":
                     new_fwds = chunk_fwds.difference(forwarded_chans.keys())
                     for i in new_fwds:
                         try:
-                            _, full_chat_d = collegram.channels.get_full(
+                            _, full_chat_d = cgc.get_full(
                                 client,
                                 paths,
                                 anonymiser,
@@ -307,20 +311,20 @@ if __name__ == "__main__":
                             full_chat_d = {}
                             logger.error(f"new forward {i} of {channel_id} invalid?")
 
-                        forwarded_chans[i] = collegram.channels.get_explo_priority(
+                        forwarded_chans[i] = cgc.get_explo_priority(
                             full_chat_d,
                             anonymiser,
                             **get_prio_kwargs,
                         )
 
-                    channel_full_d["forwards_from"] = list(
+                    output_channel_full_d["forwards_from"] = list(
                         {
                             anonymiser.anonymise(c, safe=True)
                             for c in set(forwarded_chans.keys())
-                        }.union(channel_full_d["forwards_from"])
+                        }.union(output_channel_full_d["forwards_from"])
                     )
                     anonymiser.save_map()
-                    collegram.channels.save(channel_full_d, paths, key_name)
+                    cgc.save(output_channel_full_d, paths, key_name)
 
             # What new channels should we explore?
             new_channels = {**new_channels, **forwarded_chans, **recommended_chans}
