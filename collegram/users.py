@@ -6,7 +6,7 @@ import typing
 
 import polars as pl
 from telethon.errors import ChatAdminRequiredError
-from telethon.tl.types import TypeInputChannel, User
+from telethon.tl.types import Channel, TypeInputChannel, User
 
 import collegram.utils
 
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 def get_channel_participants(
     client: TelegramClient,
-    channel: TypeInputChannel,
+    channel: TypeInputChannel | Channel,
 ) -> Iterable[User]:
     """
     We're missing the bio here, can be obtained with GetFullUserRequest

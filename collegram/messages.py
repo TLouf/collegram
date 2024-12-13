@@ -9,6 +9,7 @@ from telethon.errors import MsgIdInvalidError
 from telethon.helpers import add_surrogate
 from telethon.tl.functions.messages import SearchRequest
 from telethon.tl.types import (
+    Channel,
     InputMessagesFilterDocument,
     InputMessagesFilterEmpty,
     InputMessagesFilterGif,
@@ -70,7 +71,7 @@ MESSAGE_CONTENT_TYPE_MAP = {
 
 def get_comments_iter(
     client: TelegramClient,
-    channel: TypeInputChannel,
+    channel: TypeInputChannel | Channel,
     message_id: int,
 ) -> Iterable[Message]:
     try:
@@ -83,7 +84,7 @@ def get_comments_iter(
 
 def yield_comments(
     client: TelegramClient,
-    channel: TypeInputChannel,
+    channel: TypeInputChannel | Channel,
     message: Message,
 ):
     replies = getattr(message, "replies", None)
@@ -94,7 +95,7 @@ def yield_comments(
 
 async def save_channel_messages(
     client: TelegramClient,
-    channel: TypeInputChannel,
+    channel: TypeInputChannel | Channel,
     dt_from: datetime.datetime,
     dt_to: datetime.datetime,
     forwards_set: set[int],
@@ -105,6 +106,7 @@ async def save_channel_messages(
     fs: AbstractFileSystem = LOCAL_FS,
 ):
     """
+    TODO: add linking channels
     offset_id: messages with ID superior to `offset_id` will be retrieved
     """
     # Telethon docs are misleading, `offset_date` is in fact a datetime.
@@ -134,7 +136,7 @@ async def save_channel_messages(
 
 def query_channel_messages(
     client: TelegramClient,
-    channel: TypeInputChannel,
+    channel: TypeInputChannel | Channel,
     f: TypeMessagesFilter,
     query: str = "",
 ) -> ChannelMessages:
@@ -145,7 +147,7 @@ def query_channel_messages(
 
 def get_channel_messages_count(
     client: TelegramClient,
-    channel: TypeInputChannel,
+    channel: TypeInputChannel | Channel,
     f: TypeMessagesFilter,
     query: str = "",
 ) -> int:
