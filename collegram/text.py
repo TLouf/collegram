@@ -4,10 +4,11 @@ import re
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from bidict import bidict
     from lingua import LanguageDetector
 
 
-def get_chan_text(full_channel_d: dict, inverse_anon_map: dict):
+def get_chan_text(full_channel_d: dict, inverse_anon_map: bidict):
     # TODO: maybe add a sample of messages?
     channel_d = [
         c
@@ -29,7 +30,7 @@ def clean_text(s: str):
 
 
 def detect_chan_lang(
-    full_channel_d: dict, inverse_anon_map: dict, lang_detector: LanguageDetector
+    full_channel_d: dict, inverse_anon_map: bidict, lang_detector: LanguageDetector
 ) -> str | None:
     # TODO:  handle multilingual?
     text = get_chan_text(full_channel_d, inverse_anon_map)
