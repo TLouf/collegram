@@ -615,7 +615,7 @@ NEW_CHAN_FIELDS = {
 }
 
 
-def flatten_dict(c: dict) -> tuple[dict, list | None]:
+def flatten_dict(c: dict) -> dict:
     flat_c = {**get_matching_chat_from_full(c), **c["full_chat"]}
     flat_c["date"] = datetime.datetime.fromisoformat(flat_c["date"])
     last_queried_at = c.get("last_queried_at")
