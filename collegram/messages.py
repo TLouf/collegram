@@ -409,6 +409,10 @@ class ExtendedMessage(Message):
 
 def to_flat_dict(m: ExtendedMessage):
     m_dict = m.to_dict()
+    return flatten_dict(m, m_dict)
+
+
+def flatten_dict(m: ExtendedMessage, m_dict: dict):
     for field in collegram.json.NEW_MSG_FIELDS.keys():
         m_dict[field] = None
     for field in collegram.json.DISCARDED_MSG_FIELDS:
