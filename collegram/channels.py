@@ -294,6 +294,19 @@ def get_explo_priority(
     return lang_score * max(acty_score, 1e-3) * min(central_score, 1)
 
 
+def record_keys_hash(chan_data, key_name):
+    if key_name is not None:
+        for chat_d in chan_data["chats"]:
+            access_hashes = chat_d.get("access_hashes", {})
+            if (
+                key_name not in access_hashes
+                and chat_d["access_hash"] not in access_hashes.values()
+            ):
+                access_hashes[key_name] = chat_d["access_hash"]
+                chat_d["access_hashes"] = access_hashes
+    return chan_data
+
+
 def save(
     chan_data: dict,
     project_paths: ProjectPaths,
@@ -305,15 +318,7 @@ def save(
     channel_save_path = chan_paths.channel
     # Since `access_hash` is API-key-dependent, always add a key_name: access_hash
     # mapping in `access_hashes`.
-    if key_name is not None:
-        for chat_d in chan_data["chats"]:
-            access_hashes = chat_d.get("access_hashes", {})
-            if (
-                key_name not in access_hashes
-                and chat_d["access_hash"] not in access_hashes.values()
-            ):
-                access_hashes[key_name] = chat_d["access_hash"]
-                chat_d["access_hashes"] = access_hashes
+    chan_data = record_keys_hash(chan_data, key_name)
     fs.mkdirs(str(channel_save_path.parent), exist_ok=True)
     with fs.open(str(channel_save_path), "w") as f:
         json.dump(chan_data, f)
