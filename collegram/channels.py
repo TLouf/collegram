@@ -275,6 +275,32 @@ def get_explo_priority(
     # Returns a score between 0 and 1. Here the lowest the returned score, the more
     # priority the channel is given for message collection.
     lang_score = lang_priorities.get(lang_code, 1)
+    acty_score = get_activity_score(
+        messages_count,
+        participants_count,
+        lifespan_seconds,
+        acty_slope,
+        acty_inflexion,
+        acty_user_inflexion,
+    )
+    central_score = get_centrality_score(
+        distance_from_core,
+        nr_forwarding_channels,
+        nr_recommending_channels,
+        nr_linking_channels,
+    )
+    # We threshold acty_score to 1e-3 so that it doesn't dominate all others.
+    return lang_score * max(acty_score, 1e-3) * min(central_score, 1)
+
+
+def get_activity_score(
+    messages_count: int,
+    participants_count: int | None,
+    lifespan_seconds: int,
+    acty_slope: float = 1,
+    acty_inflexion: int = 100,  # 100 messages per day
+    acty_user_inflexion: float = 0.1,  # 10 messages per day for channel of 100 users
+):
     if participants_count is None:
         acty_per_day = messages_count / (lifespan_seconds / 3600 / 24)
         acty_score = 1 / (1 + (acty_inflexion / acty_per_day) ** acty_slope)
@@ -283,15 +309,22 @@ def get_explo_priority(
             messages_count / max(participants_count, 1) / (lifespan_seconds / 3600 / 24)
         )
         acty_score = 1 / (1 + (acty_user_inflexion / acty_per_user_day) ** acty_slope)
+    return acty_score
+
+
+def get_centrality_score(
+    distance_from_core: int,
+    nr_forwarding_channels: int,
+    nr_recommending_channels: int,
+    nr_linking_channels: int,
+):
     # With the following, for instance if channel is forwarded from by two core channels
     # (dist = 0), it will be prioritised over other core channels. And if channel is
     # recommended in / fowarded from n times more than another at the same distance from
     # the core, it will have a priority ~n times smaller.
-    central_score = (distance_from_core + 1) / (
+    return (distance_from_core + 1) / (
         1 + nr_recommending_channels + nr_forwarding_channels + nr_linking_channels
     )
-    # We threshold acty_score to 1e-3 so that it doesn't dominate all others.
-    return lang_score * max(acty_score, 1e-3) * min(central_score, 1)
 
 
 def record_keys_hash(chan_data, key_name):
