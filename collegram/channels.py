@@ -280,7 +280,7 @@ def get_explo_priority(
         acty_score = 1 / (1 + (acty_inflexion / acty_per_day) ** acty_slope)
     else:
         acty_per_user_day = (
-            messages_count / participants_count / (lifespan_seconds / 3600 / 24)
+            messages_count / max(participants_count, 1) / (lifespan_seconds / 3600 / 24)
         )
         acty_score = 1 / (1 + (acty_user_inflexion / acty_per_user_day) ** acty_slope)
     # With the following, for instance if channel is forwarded from by two core channels
