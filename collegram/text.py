@@ -23,7 +23,7 @@ def get_chan_text(full_channel_d: dict, inverse_anon_map: bidict):
 
 def clean_text(s: str):
     hash_at_pattern = r"(?:^|\B)((@|#)\w+)(?:$|\b)"
-    url_pattern = r"(?:^|\s)(\S+\/t.co\/\S+)(?:$|\b)"
+    url_pattern = r"(https?://|www\.|t\.me/)\S+"
     regex_filter = re.compile("({})|({})".format(hash_at_pattern, url_pattern))
     clean_text = regex_filter.sub("", s)
     return clean_text
