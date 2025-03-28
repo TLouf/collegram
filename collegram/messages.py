@@ -6,6 +6,7 @@ import logging
 import re
 from typing import TYPE_CHECKING
 
+import polars as pl
 from telethon.errors import MsgIdInvalidError
 from telethon.helpers import add_surrogate
 from telethon.tl.functions.messages import SearchRequest
@@ -49,7 +50,7 @@ from telethon.tl.types.messages import ChannelMessages
 
 import collegram.json
 import collegram.media
-from collegram.utils import LOCAL_FS
+from collegram.utils import LOCAL_FS, py_to_pl_types
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -407,16 +408,57 @@ class ExtendedMessage(Message):
         return d
 
 
+NEW_MSG_FIELDS = {
+    "media_type": pl.Utf8,
+    "media_id": pl.Int64,
+    "webpage_preview_url": pl.Utf8,
+    "webpage_preview_type": pl.Utf8,
+    "webpage_preview_site_name": pl.Utf8,
+    "webpage_preview_title": pl.Utf8,
+    "webpage_preview_description": pl.Utf8,
+    "from_type": pl.Utf8,
+    "peer_type": pl.Utf8,
+    "replies_to_msg_id": pl.Int64,
+    "replies_to_chan_id": pl.Utf8,
+    "replies_to_thread_msg_id": pl.Int64,
+    "fwd_from_date": pl.Datetime(time_zone="UTC"),
+    "fwd_from_type": pl.Utf8,
+    "fwd_from_id": pl.Utf8,
+    "fwd_from_msg_id": pl.Int64,
+    "nr_replies": pl.Int64,
+    "has_comments": pl.Boolean,
+}
+CHANGED_MSG_FIELDS = {
+    "reactions": pl.Struct,
+    "from_id": pl.Int64,
+    "peer_id": pl.Int64,
+}
+DISCARDED_MSG_FIELDS = (
+    "media",
+    "reply_to",
+    "fwd_from",
+    "replies",
+)
+
+
+def get_pl_schema():
+    annots = inspect.getfullargspec(collegram.json.Message).annotations
+    discarded_args = DISCARDED_MSG_FIELDS
+    msg_schema = {
+        arg: py_to_pl_types(annots[arg])
+        for arg in set(annots.keys()).difference(discarded_args)
+    }
+    msg_schema = {**msg_schema, **CHANGED_MSG_FIELDS, **NEW_MSG_FIELDS}
+    return msg_schema
+
+
 def to_flat_dict(m: ExtendedMessage):
-    m_dict = m.to_dict()
-    return flatten_dict(m, m_dict)
-
-
-def flatten_dict(m: ExtendedMessage, m_dict: dict):
-    for field in collegram.json.NEW_MSG_FIELDS.keys():
-        m_dict[field] = None
-    for field in collegram.json.DISCARDED_MSG_FIELDS:
-        m_dict.pop(field)
+    m_dict = {}
+    non_nested_f = set(collegram.json.Message.__struct_fields__).difference(
+        DISCARDED_MSG_FIELDS
+    )
+    for field in non_nested_f:
+        m_dict[field] = getattr(m, field)
 
     media = m.media
     if media is not None:
