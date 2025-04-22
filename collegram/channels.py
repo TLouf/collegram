@@ -301,12 +301,15 @@ def get_activity_score(
     acty_inflexion: int = 100,  # 100 messages per day
     acty_user_inflexion: float = 0.1,  # 10 messages per day for channel of 100 users
 ):
+    messages_count = max(messages_count, 1)
+    lifespan_seconds = max(lifespan_seconds, 1)
     if participants_count is None:
         acty_per_day = messages_count / (lifespan_seconds / 3600 / 24)
         acty_score = 1 / (1 + (acty_inflexion / acty_per_day) ** acty_slope)
     else:
+        participants_count = max(participants_count, 1)
         acty_per_user_day = (
-            messages_count / max(participants_count, 1) / (lifespan_seconds / 3600 / 24)
+            messages_count / participants_count / (lifespan_seconds / 3600 / 24)
         )
         acty_score = 1 / (1 + (acty_user_inflexion / acty_per_user_day) ** acty_slope)
     return acty_score
