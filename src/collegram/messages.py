@@ -9,7 +9,11 @@ from typing import TYPE_CHECKING
 import polars as pl
 from telethon.errors import MsgIdInvalidError
 from telethon.helpers import add_surrogate
-from telethon.tl.functions.messages import SearchRequest
+from telethon.tl.functions.messages import (
+    GetSearchCountersRequest,
+    GetSearchResultsPositionsRequest,
+    SearchRequest,
+)
 from telethon.tl.types import (
     Document,
     InputMessagesFilterDocument,
@@ -186,10 +190,29 @@ def query_channel_messages(
 def get_channel_messages_count(
     client: TelegramClient,
     channel: TypeInputChannel,
-    f: TypeMessagesFilter,
-    query: str = "",
-) -> int:
-    return query_channel_messages(client, channel, f, query=query).count
+    input_filters: TypeMessagesFilter | list[TypeMessagesFilter],
+) -> list[int]:
+    if isinstance(input_filters, TypeMessagesFilter):
+        input_filters = [input_filters]
+    filters_for_counter_req = [
+        f for f in input_filters if not isinstance(f, InputMessagesFilterEmpty)
+    ]
+    counts = []
+    if len(filters_for_counter_req) > 0:
+        counters = client.loop.run_until_complete(
+            client(GetSearchCountersRequest(channel, filters_for_counter_req))
+        )
+        counts.extend([c.count for c in counters])
+    if len(filters_for_counter_req) < len(input_filters):
+        # For some reason `GetSearchCountersRequest` returns 0 for the empty filter, so
+        # use another call that actually works:
+        f = InputMessagesFilterEmpty()
+        c = client.loop.run_until_complete(
+            client(GetSearchResultsPositionsRequest(channel, f, 0, 0))
+        ).count
+        counts.insert(input_filters.index(f), c)
+    # return query_channel_messages(client, channel, f, query=query).count
+    return counts
 
 
 def preprocess(
@@ -427,6 +450,7 @@ NEW_MSG_FIELDS = {
     "fwd_from_msg_id": pl.Int64,
     "nr_replies": pl.Int64,
     "has_comments": pl.Boolean,
+    "other_reactions_count": pl.Int64,
 }
 CHANGED_MSG_FIELDS = {
     "reactions": pl.Struct,
@@ -438,6 +462,9 @@ DISCARDED_MSG_FIELDS = (
     "reply_to",
     "fwd_from",
     "replies",
+)
+STANDARD_REACTIONS = set(
+    "❤👍👎🔥🥰👏😁🤔🤯😱🤬😢🎉🤩🤮💩🙏👌🕊🤡🥱🥴😍🐳❤‍🔥🌚🌭💯🤣⚡🍌🏆💔🤨😐🍓🍾💋🖕😈😴😭🤓👻👨‍💻👀🎃🙈😇😨🤝✍🤗🫡🎅🎄☃💅🤪🗿🆒💘🙉🦄😘💊🙊😎👾🤷‍♂🤷🤷‍♀😡"
 )
 
 
@@ -529,6 +556,7 @@ def to_flat_dict(m: ExtendedMessage):
         m_dict["nr_replies"] = 0
         m_dict["has_comments"] = False
 
+    m_dict["other_reactions_count"] = 0
     if m.reactions is not None:
         # There can be big number of different reactions, so keep this as dict
         # (converted to struct by Polars).
@@ -537,11 +565,10 @@ def to_flat_dict(m: ExtendedMessage):
             for r in m.reactions.results:
                 if isinstance(r.reaction, ReactionEmoji):
                     key = r.reaction.emoticon
+                    reaction_d[key] = r.count
                 elif isinstance(r.reaction, ReactionCustomEmoji):
-                    # Cast `document_id` to string to have consistent type.
-                    key = str(r.reaction.document_id)
+                    m_dict["other_reactions_count"] += r.count
                 else:
                     continue
-                reaction_d[key] = r.count
         m_dict["reactions"] = reaction_d
     return m_dict
