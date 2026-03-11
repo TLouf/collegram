@@ -99,6 +99,7 @@ class ChannelPaths:
         self.messages_table = (
             self.project_paths.messages_tables / f"{self.channel_id}.parquet"
         )
+        self.messages_jsonl = interim / "messages" / f"{self.channel_id}.jsonl"
         self.messages_service_jsonl = (
             interim / "messages_service" / f"{self.channel_id}.jsonl"
         )

@@ -349,7 +349,7 @@ def save(
     key_name: str | None,
     fs: AbstractFileSystem = LOCAL_FS,
 ):
-    anon_id = chan_data["full_chat"]["id"]
+    anon_id = chan_data["id"]
     chan_paths = ChannelPaths(anon_id, project_paths)
     channel_save_path = chan_paths.channel
     # Since `access_hash` is API-key-dependent, always add a key_name: access_hash
