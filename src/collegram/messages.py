@@ -47,6 +47,7 @@ from telethon.tl.types import (
     Photo,
     ReactionCustomEmoji,
     ReactionEmoji,
+    TypeMessagesFilter,
     WebPage,
     WebPageNotModified,
 )
@@ -62,11 +63,7 @@ if TYPE_CHECKING:
 
     from fsspec import AbstractFileSystem
     from telethon import TelegramClient
-    from telethon.tl.types import (
-        TypeInputChannel,
-        TypeMessagesFilter,
-        TypePeer,
-    )
+    from telethon.tl.types import TypeInputChannel, TypePeer
 
 logger = logging.getLogger(__name__)
 
