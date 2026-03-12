@@ -290,7 +290,7 @@ def get_explo_priority(
         nr_linking_channels,
     )
     # We threshold acty_score to 1e-3 so that it doesn't dominate all others.
-    return lang_score * max(acty_score, 1e-3) * min(central_score, 1)
+    return lang_score * max(acty_score, 1e-3) * max(min(central_score, 1), 1e-3)
 
 
 def get_activity_score(
