@@ -150,6 +150,7 @@ async def yield_channel_messages(
     anon_func,
     media_save_path: Path,
     offset_id=0,
+    limit=None,
     fs: AbstractFileSystem = LOCAL_FS,
 ):
     # Telethon docs are misleading, `offset_date` is in fact a datetime.
@@ -158,6 +159,7 @@ async def yield_channel_messages(
         offset_date=dt_from,
         offset_id=offset_id,
         reverse=True,
+        limit=limit,
     ):
         # Take messages in until we've reached `dt_to` (works because
         # `iter_messages` gets messages in reverse chronological order by default,
