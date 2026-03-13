@@ -276,7 +276,7 @@ def preprocess_entities(
                 if username_match is None:
                     anon_message.text_urls.add(url)
                 else:
-                    un = username_match.group(2)
+                    un = username_match.group(2).lower()
                     prev_len = len(msg_linked_chans)
                     msg_linked_chans.add(un)
                     if len(msg_linked_chans) > prev_len:
