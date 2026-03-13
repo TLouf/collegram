@@ -46,6 +46,10 @@ if typing.TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+class EntityIsNotChannelError(Exception):
+    pass
+
+
 async def query_bot(client: TelegramClient, bot, cmd):
     async with client.conversation(bot, timeout=120) as conv:
         await conv.send_message(cmd)
@@ -121,8 +125,14 @@ def _get_input_peer(
     # won't check anything if we pass it a peer. Thus why in that case we need to
     # manually check for existence with a `get_entity`.
     input_entity = client.loop.run_until_complete(client.get_input_entity(peer))
+
     if not isinstance(peer, str) and check:
         get(client, input_entity)
+
+    if not isinstance(input_entity, InputPeerChannel):
+        raise EntityIsNotChannelError(
+            f"Entity with id {channel_id} and username {channel_username} is not a channel."
+        )
     return input_entity
 
 
