@@ -210,7 +210,6 @@ def get_channel_messages_count(
             client(GetSearchResultsPositionsRequest(channel, f, 0, 0))
         ).count
         counts.insert(input_filters.index(f), c)
-    # return query_channel_messages(client, channel, f, query=query).count
     return counts
 
 
