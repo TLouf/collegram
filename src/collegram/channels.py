@@ -189,6 +189,11 @@ def get_full(
     return full_chat
 
 
+def norm_username(username: str | None):
+    username = username.lower() if isinstance(username, str) else username
+    return username
+
+
 def get_usernames_from_chat_d(chat_d: dict) -> list[str]:
     unames = [chat_d["username"]] if chat_d["username"] is not None else []
     if chat_d.get("usernames"):
@@ -250,11 +255,11 @@ def anon_full_dict(full_dict: dict, anonymiser: HMAC_anonymiser, safe=True):
     anon_func = anonymiser.anonymise
     for c in full_dict["chats"]:
         c["photo"] = None
-        c["username"] = anon_func(c["username"], safe=safe)
+        c["username"] = anon_func(norm_username(c["username"]), safe=safe)
         c["title"] = anon_func(c["title"], safe=safe)
         if c["usernames"] is not None:
             for un in c["usernames"]:
-                un["username"] = anon_func(un["username"], safe=safe)
+                un["username"] = anon_func(norm_username(un["username"]), safe=safe)
     full_channel = full_dict["full_chat"]
     full_channel["chat_photo"] = None
 
