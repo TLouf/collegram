@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import datetime
+import inspect
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 import msgspec
+import telethon.types
 
 from collegram.utils import LOCAL_FS
 
@@ -96,24 +98,14 @@ class MessageMediaWebPage(MessageMediaBase):
     webpage: MediaWebPage
 
 
+TELETHON_TYPES = inspect.getmembers(telethon.types, inspect.isclass)
 ignored_media_structs = [
-    msgspec.defstruct(f"MessageMedia{name}", [], bases=(MessageMediaBase,))
-    for name in (
-        "Geo",
-        "Contact",
-        "Unsupported",
-        "Venue",
-        "Game",
-        "Invoice",
-        "GeoLive",
-        "Poll",
-        "Dice",
-        "Story",
-        "Giveaway",
-        "GiveawayResults",
-    )
+    msgspec.defstruct(name, [], bases=(MessageMediaBase,))
+    for name, cls in TELETHON_TYPES
+    if getattr(cls, "SUBCLASS_OF_ID", None)
+    == telethon.types.MessageMediaEmpty.SUBCLASS_OF_ID
+    and name not in RELEVANT_MEDIA_TYPES.keys()
 ]
-
 MessageMediaTypes = Union[
     tuple(
         [MessageMediaPhoto, MessageMediaDocument, MessageMediaWebPage]
