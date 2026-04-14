@@ -93,7 +93,7 @@ class MessageMediaDocument(MessageMediaBase):
 
 
 class MessageMediaWebPage(MessageMediaBase):
-    webpage: MediaType
+    webpage: MediaWebPage
 
 
 ignored_media_structs = [
@@ -124,6 +124,15 @@ MessageMediaTypes = Union[
 
 class MediaType(msgspec.Struct):
     id: int
+
+
+class MediaWebPage(MediaType):
+    url: Optional[str] = None
+    type: Optional[str] = None
+    site_name: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    embed_type: Optional[str] = None
 
 
 class FwdFrom(msgspec.Struct):
